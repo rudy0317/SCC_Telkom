@@ -5,6 +5,7 @@
   "description": "Auto-inject GPS koordinat ODP ke SCC Telkom. Untuk internal use.",
   "permissions": [
     "storage",
+    "cookies",
     "declarativeNetRequest",
     "declarativeNetRequestWithHostAccess"
   ],

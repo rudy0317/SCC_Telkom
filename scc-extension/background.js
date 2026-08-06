@@ -1,5 +1,6 @@
 // Background service worker
-// Menerima koordinat dari form GitHub Pages -> simpan ke chrome.storage
+// 1. Menerima koordinat dari form GitHub Pages -> simpan ke chrome.storage
+// 2. Fix cookie SameSite=None agar session SCC Telkom berjalan di dalam iframe
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'SET_COORDS') {
@@ -9,6 +10,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }, () => {
       sendResponse({ status: 'ok' });
     });
-    return true; // async response
+    return true;
   }
 });
+
+// Remove SameSite restrictions on cookies for scc.telkom.co.id
+chrome.declarativeNetRequest.updateHeadersInSession && chrome.declarativeNetRequest.updateHeadersInSession({});
