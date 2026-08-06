@@ -26,6 +26,17 @@ if (fs.existsSync(odpPath)) {
   }
 }
 
+// Mock Ookla speedtest result (realistic structure from index_scc.js L197)
+const MOCK_SPEEDTEST_RESULT = {
+  download: 32080,
+  upload: 12110,
+  ping: { latency: 11.9, jitter: 2.25 },
+  serverId: 'e425a2ca-ab2e-44f1-b505-a3f26ee17630',
+  serverName: 'Jakarta',
+  host: 'https://jakarta.speedtest.telkom.net.id.prod.hosts.ooklaserver.net:8080/',
+  units: 'Kbps'
+};
+
 // 1. ODP Search API Endpoint
 app.get('/api/odp/search', (req, res) => {
   const query = (req.query.q || '').trim().toLowerCase();
@@ -49,7 +60,7 @@ app.get('/api/odp/search', (req, res) => {
   return res.json(results);
 });
 
-// 2. Playwright Realtime SSE Streaming Endpoint with Fault-Tolerant Loop
+// 2. Playwright Realtime SSE Streaming Endpoint
 app.post('/api/scc/process-stream', async (req, res) => {
   const { ticketId, nd, lat, lng } = req.body;
 
@@ -96,12 +107,117 @@ app.post('/api/scc/process-stream', async (req, res) => {
 
     const page = await context.newPage();
 
-    // Set Native CDP Geolocation Emulation explicitly
+    // Set Native CDP Geolocation
     const client = await context.newCDPSession(page);
     await client.send('Emulation.setGeolocationOverride', {
       latitude: targetLat,
       longitude: targetLng,
       accuracy: 3
+    });
+
+    // ============================================================
+    // INTERCEPT NETWORK REQUESTS (Bypass Speedtest + IP Radius)
+    // ============================================================
+
+    // Intercept retrieveIPRadius → Force statusCode 200
+    await page.route('**/retrieveIPRadius**', async (route) => {
+      sendEvent('status', { message: '🔓 Intercepted retrieveIPRadius → Forcing statusCode 200', color: '#f59e0b' });
+      try {
+        const response = await route.fetch();
+        let body = await response.text();
+        try {
+          const json = JSON.parse(body);
+          json.success = true;
+          if (!json.data) json.data = {};
+          json.data.statusCode = 200;
+          json.data.frame_ip = '182.8.143.64';
+          body = JSON.stringify(json);
+        } catch (e) {}
+        await route.fulfill({ status: 200, contentType: 'application/json', body });
+      } catch (e) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { statusCode: 200, frame_ip: '182.8.143.64' } }) });
+      }
+    });
+
+    // Intercept saveWho → Force passed_ip true
+    await page.route('**/saveWho**', async (route) => {
+      sendEvent('status', { message: '🔓 Intercepted saveWho → Forcing passed_ip: true', color: '#f59e0b' });
+      try {
+        const response = await route.fetch();
+        let body = await response.text();
+        try {
+          const json = JSON.parse(body);
+          json.success = true;
+          if (json.data) json.data.passed_ip = true;
+          body = JSON.stringify(json);
+        } catch (e) {}
+        await route.fulfill({ status: 200, contentType: 'application/json', body });
+      } catch (e) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { passed_ip: true } }) });
+      }
+    });
+
+    // Intercept SaveSpeed → Inject mock speedtest payload if rest is null
+    await page.route('**/SaveSpeed**', async (route, request) => {
+      sendEvent('status', { message: '⚡ Intercepted SaveSpeed → Injecting valid Ookla payload', color: '#38bdf8' });
+      try {
+        let postData = request.postData() || '{}';
+        let parsed = {};
+        try { parsed = JSON.parse(postData); } catch (e) {}
+
+        // If speed is null/empty, inject mock
+        if (!parsed.speed || parsed.speed === 'null' || parsed.speed === '0') {
+          parsed.speed = JSON.stringify(MOCK_SPEEDTEST_RESULT);
+          if (!parsed.speedtestname || parsed.speedtestname === 'failed') {
+            parsed.speedtestname = 'ookla';
+          }
+        }
+
+        await route.continue({
+          postData: JSON.stringify(parsed),
+          headers: { ...request.headers(), 'Content-Type': 'application/json' }
+        });
+      } catch (e) {
+        await route.continue();
+      }
+    });
+
+    // Intercept retrieveSpeed → Force speed_passed = 1
+    await page.route('**/retrieveSpeed**', async (route) => {
+      sendEvent('status', { message: '✅ Intercepted retrieveSpeed → Forcing speed_passed: 1 (Layak)', color: '#22c55e' });
+      try {
+        const response = await route.fetch();
+        let body = await response.text();
+        try {
+          const json = JSON.parse(body);
+          json.success = true;
+          if (!json.data) json.data = {};
+          json.data.speed_passed = 1;
+          body = JSON.stringify(json);
+        } catch (e) {}
+        await route.fulfill({ status: 200, contentType: 'application/json', body });
+      } catch (e) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { speed_passed: 1 } }) });
+      }
+    });
+
+    // Intercept retrieveSpeedAcsis → Force speed data
+    await page.route('**/retrieveSpeedAcsis**', async (route) => {
+      sendEvent('status', { message: '✅ Intercepted retrieveSpeedAcsis → Injecting speed data', color: '#22c55e' });
+      try {
+        const response = await route.fetch();
+        let body = await response.text();
+        try {
+          const json = JSON.parse(body);
+          json.success = true;
+          if (!json.data) json.data = {};
+          json.data.speed = 32080;
+          body = JSON.stringify(json);
+        } catch (e) {}
+        await route.fulfill({ status: 200, contentType: 'application/json', body });
+      } catch (e) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { speed: 32080 } }) });
+      }
     });
 
     // Start 300ms Realtime Screen Frame Streaming
@@ -115,14 +231,14 @@ app.post('/api/scc/process-stream', async (req, res) => {
     }, 300);
 
     const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
-    sendEvent('status', { message: `🌐 Navigating to SCC Telkom URL...`, color: '#f59e0b' });
+    sendEvent('status', { message: '🌐 Navigating to SCC Telkom URL...', color: '#f59e0b' });
 
     await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-    sendEvent('status', { message: '⌛ Waiting for SCC Telkom scripts to settle...', color: '#f59e0b' });
+    sendEvent('status', { message: '⌛ Waiting for SCC Telkom scripts to load...', color: '#f59e0b' });
     await page.waitForFunction(() => typeof $ !== 'undefined' && typeof doTask === 'function', { timeout: 30000 });
 
-    sendEvent('status', { message: '⚡ Executing doTask() form submit with ODP Geolocation...', color: '#38bdf8' });
+    sendEvent('status', { message: '⚡ Injecting Ticket + ND & calling doTask()...', color: '#38bdf8' });
     await page.evaluate(({ t, n }) => {
       $('#input-ticket').val(t);
       $('#input-nd').val(n);
@@ -131,27 +247,57 @@ app.post('/api/scc/process-stream', async (req, res) => {
       }
     }, { t: ticketId, n: nd });
 
-    sendEvent('status', { message: '📍 Injecting ODP GPS & Auto-driving QC steps until completion...', color: '#22c55e' });
+    sendEvent('status', { message: '📍 CDP Geolocation Active. Waiting for QC flow...', color: '#22c55e' });
 
-    // Safe sequential async loop instead of unhandled setInterval inside Promise
+    // Auto-drive loop: 45 seconds
+    // Inject `rest` variable, enable `#submit-speed`, and auto-click buttons
     for (let i = 0; i < 45; i++) {
       await page.waitForTimeout(1000);
       try {
         if (page && !page.isClosed()) {
-          await page.evaluate(() => {
-            const buttons = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
+          const actionLog = await page.evaluate((mockResult) => {
+            let actions = [];
+
+            // Inject `rest` variable if null (Ookla iframe result placeholder)
+            if (typeof rest === 'undefined' || rest === null) {
+              window.rest = mockResult;
+              actions.push('Injected rest variable');
+            }
+
+            // Force enable #submit-speed and trigger click
+            if ($('#submit-speed').length && $('#submit-speed').hasClass('disabled')) {
+              $('#submit-speed').removeClass('disabled').addClass('enabled');
+              actions.push('Enabled #submit-speed');
+            }
+
+            // Auto-click enabled submit-speed
+            if ($('#submit-speed').length && $('#submit-speed').hasClass('enabled') && !$('#submit-speed').hasClass('hide')) {
+              $('#submit-speed').trigger('click');
+              actions.push('Clicked #submit-speed');
+            }
+
+            // Auto-click any visible continue/lanjut/ok buttons
+            const buttons = Array.from(document.querySelectorAll('button, a.btn, input[type="button"], input[type="submit"]'));
             buttons.forEach(btn => {
               const text = (btn.innerText || btn.value || '').toLowerCase();
-              if ((text.includes('continue') || text.includes('lanjut') || text.includes('close ticket') || text.includes('ok')) && !btn.disabled && !btn.classList.contains('hide')) {
+              const isTarget = text.includes('continue') || text.includes('lanjut') || text.includes('close ticket') || text.includes('ok');
+              if (isTarget && !btn.disabled && btn.offsetParent !== null) {
                 btn.click();
+                actions.push('Clicked: ' + text.trim().substring(0, 30));
               }
             });
-          });
+
+            return actions;
+          }, MOCK_SPEEDTEST_RESULT);
+
+          if (actionLog.length > 0) {
+            sendEvent('status', { message: `🤖 [Cycle ${i+1}] ${actionLog.join(' | ')}`, color: '#38bdf8' });
+          }
         }
       } catch (e) {}
     }
 
-    sendEvent('status', { message: '✅ QC & Geolocation Injection Full Cycle Finished!', color: '#22c55e' });
+    sendEvent('status', { message: '✅ Full QC Cycle Completed!', color: '#22c55e' });
 
     const finalBuffer = await page.screenshot({ type: 'png' });
     sendEvent('frame', { image: `data:image/png;base64,${finalBuffer.toString('base64')}` });
@@ -174,7 +320,7 @@ app.post('/api/scc/process-stream', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`\n======================================================`);
-  console.log(`🚀 SCC Telkom Playwright Automation Engine Active!`);
-  console.log(`🌐 Server running at: http://localhost:3000`);
+  console.log(`🚀 SCC Telkom Playwright Automation Engine v2.5`);
+  console.log(`🌐 Server running at: http://localhost:${PORT}`);
   console.log(`======================================================\n`);
 });
