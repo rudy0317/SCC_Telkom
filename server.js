@@ -249,14 +249,16 @@ app.post('/api/scc/process-stream', async (req, res) => {
 
     sendEvent('status', { message: '📍 CDP Geolocation Active. Waiting for QC flow...', color: '#22c55e' });
 
-    // Auto-drive loop: 120 seconds max
-    // State flags tracked ON THE PAGE via window.__automation
-    for (let i = 0; i < 120; i++) {
+    // Auto-drive loop: 180 seconds max (matches Telkom's 3-minute timeout)
+    // Strategy: Let speedtest run naturally. Only inject rest as FALLBACK after 45s.
+    let speedtestModalStartedAt = null;
+
+    for (let i = 0; i < 180; i++) {
       await page.waitForTimeout(1000);
       try {
         if (page && !page.isClosed()) {
-          const actionLog = await page.evaluate((mockResult) => {
-            // Initialize state tracker (persists across evaluate calls)
+          const actionLog = await page.evaluate(({ mockResult, secondsInModal }) => {
+            // Initialize state tracker
             if (!window.__automation) {
               window.__automation = {
                 restInjected: false,
@@ -266,40 +268,55 @@ app.post('/api/scc/process-stream', async (req, res) => {
             const state = window.__automation;
             let actions = [];
 
-            // Step 1: Inject `rest` variable ONCE when speedtest modal is visible
-            if (!state.restInjected && (typeof rest === 'undefined' || rest === null)) {
-              // Only inject when the ookla modal is actually showing
-              if ($('#ookla-test').length && $('#ookla-test').is(':visible')) {
-                window.rest = mockResult;
-                state.restInjected = true;
-                actions.push('Injected rest (once)');
-              }
-            }
-
-            // Step 2: Enable + click #submit-speed ONCE
-            if (!state.speedClicked && state.restInjected) {
-              if ($('#submit-speed').length) {
-                $('#submit-speed').removeClass('disabled').addClass('enabled');
-                $('#submit-speed').trigger('click');
-                state.speedClicked = true;
-                actions.push('Enabled + Clicked #submit-speed (once)');
-              }
-            }
-
-            // Step 3: Report current visible step for live status
+            // Report current visible step
             let currentStep = '';
+            let ooklaVisible = false;
             if ($('#ask-ticket').is(':visible')) currentStep = 'Input Ticket';
             else if ($('#show-check').is(':visible')) currentStep = 'Checking...';
-            else if ($('#ookla-test').is(':visible')) currentStep = 'Speedtest Modal';
+            else if ($('#ookla-test').is(':visible')) {
+              ooklaVisible = true;
+              // Check if speedtest completed naturally (rest was set by ooklaListener)
+              if (typeof rest !== 'undefined' && rest !== null && rest.download) {
+                currentStep = 'Speedtest Complete ✅ (Download: ' + rest.download + ')';
+              } else {
+                currentStep = 'Speedtest Running... (' + secondsInModal + 's)';
+              }
+            }
             else if ($('#show-finish').is(':visible')) currentStep = 'FINISHED';
             else if ($('#show-location').is(':visible')) currentStep = 'Saving Location';
             if (currentStep) actions.push('Step: ' + currentStep);
 
-            return actions;
-          }, MOCK_SPEEDTEST_RESULT);
+            // FALLBACK: Only inject rest after 45 seconds of speedtest modal being visible
+            // This gives the Ookla iframe time to actually run
+            if (ooklaVisible && !state.restInjected && secondsInModal >= 45) {
+              if (typeof rest === 'undefined' || rest === null) {
+                window.rest = mockResult;
+                state.restInjected = true;
+                actions.push('⚠️ Speedtest timeout → Injected fallback rest');
+              }
+            }
 
-          if (actionLog.length > 0) {
-            sendEvent('status', { message: `🤖 [${i+1}s] ${actionLog.join(' | ')}`, color: '#38bdf8' });
+            // Click #submit-speed ONCE when rest is available (either natural or fallback)
+            if (!state.speedClicked && typeof rest !== 'undefined' && rest !== null) {
+              if ($('#submit-speed').length) {
+                $('#submit-speed').removeClass('disabled').addClass('enabled');
+                $('#submit-speed').trigger('click');
+                state.speedClicked = true;
+                actions.push('Clicked #submit-speed (once)');
+              }
+            }
+
+            return { actions, ooklaVisible };
+          }, { mockResult: MOCK_SPEEDTEST_RESULT, secondsInModal: speedtestModalStartedAt !== null ? (i - speedtestModalStartedAt) : 0 });
+
+          // Track when speedtest modal first appeared
+          if (actionLog.ooklaVisible && speedtestModalStartedAt === null) {
+            speedtestModalStartedAt = i;
+            sendEvent('status', { message: '🏎️ Speedtest modal detected! Letting it run naturally...', color: '#f59e0b' });
+          }
+
+          if (actionLog.actions.length > 0) {
+            sendEvent('status', { message: `🤖 [${i+1}s] ${actionLog.actions.join(' | ')}`, color: '#38bdf8' });
           }
 
           // Early exit if finished
