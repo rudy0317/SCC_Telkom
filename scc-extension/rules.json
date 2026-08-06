@@ -5,8 +5,10 @@
     "action": {
       "type": "modifyHeaders",
       "requestHeaders": [
-        { "header": "Referer", "operation": "set", "value": "https://scc.telkom.co.id/" },
-        { "header": "Origin", "operation": "set", "value": "https://scc.telkom.co.id" }
+        { "header": "Referer", "operation": "set", "value": "https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/" },
+        { "header": "Origin", "operation": "set", "value": "https://scc.telkom.co.id" },
+        { "header": "Sec-Fetch-Site", "operation": "set", "value": "same-origin" },
+        { "header": "Sec-Fetch-Mode", "operation": "set", "value": "cors" }
       ],
       "responseHeaders": [
         { "header": "X-Frame-Options", "operation": "remove" },
