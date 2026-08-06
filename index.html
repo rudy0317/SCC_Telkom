@@ -394,9 +394,6 @@
             };
         }
 
-        const frameContainer = document.getElementById('frameContainer');
-        const openTabBtn = document.getElementById('openTabBtn');
-
         form.addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -420,17 +417,24 @@
 
             const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
 
-            // Kirim koordinat ke SCC Tools Extension sebelum iframe dibuka
-            window.postMessage({ type: 'SCC_COORDS', lat: lat, lng: lng }, '*');
+            // Kirim pesan ke Extension jika terpasang (untuk sinkronisasi koordinat)
+            window.postMessage({
+                type: 'SCC_COORDS',
+                lat: lat,
+                lng: lng,
+                targetUrl: targetUrl
+            }, '*');
 
-            placeholder.style.display = 'none';
-            frameContainer.style.display = 'block';
-            openTabBtn.href = targetUrl;
+            // Kalkulasi posisi jendela agar di-docking presisi di separuh layar kanan
+            const screenWidth = window.screen.availWidth;
+            const screenHeight = window.screen.availHeight;
+            const windowWidth = Math.floor(screenWidth / 2);
+            const windowLeft = screenWidth - windowWidth;
 
-            // Delay 200ms biar extension sempat simpan koordinat sebelum iframe dimuat
-            setTimeout(() => {
-                iframe.src = targetUrl;
-            }, 200);
+            const windowFeatures = `width=${windowWidth},height=${screenHeight},left=${windowLeft},top=0,resizable=yes,scrollbars=yes,status=yes`;
+
+            // Buka jendela SCC Telkom di paruh layar kanan
+            window.open(targetUrl, 'SCC_Window', windowFeatures);
         });
     </script>
 </body>
