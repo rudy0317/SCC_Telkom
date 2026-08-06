@@ -87,6 +87,9 @@ app.post('/api/scc/process', async (req, res) => {
 
     const page = await context.newPage();
 
+    // Log browser console output
+    page.on('console', msg => console.log('[Browser Console]:', msg.text()));
+
     // Set Native CDP Geolocation Emulation explicitly
     const client = await context.newCDPSession(page);
     await client.send('Emulation.setGeolocationOverride', {
@@ -99,35 +102,24 @@ app.post('/api/scc/process', async (req, res) => {
     console.log(`[Automation Engine] Navigating to: ${targetUrl}`);
 
     await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForTimeout(1500);
 
-    // Step 1: Fill Ticket ID & ND inputs if present
-    console.log(`[Automation Engine] Filling form inputs & clicking submit...`);
-    
-    try {
-      const ticketInput = await page.$('#input-ticket');
-      if (ticketInput) {
-        await page.fill('#input-ticket', ticketId);
-        await page.fill('#input-nd', nd);
-        await page.click('#submit-ticket');
-        console.log(`[Automation Engine] Clicked #submit-ticket successfully.`);
-      } else {
-        console.log(`[Automation Engine] Inputs missing, triggering JS doTask()...`);
-        await page.evaluate(({ t, n }) => {
-          if (typeof $ !== 'undefined') {
-            if ($('#input-ticket').length) $('#input-ticket').val(t);
-            if ($('#input-nd').length) $('#input-nd').val(n);
-            if (typeof doTask === 'function') doTask();
-          }
-        }, { t: ticketId, n: nd });
+    // Wait for jQuery & doTask function to be ready
+    console.log(`[Automation Engine] Waiting for SCC Telkom scripts...`);
+    await page.waitForFunction(() => typeof $ !== 'undefined' && typeof doTask === 'function', { timeout: 30000 });
+
+    // Execute doTask() directly via evaluate (bypasses element visibility limits)
+    console.log(`[Automation Engine] Executing doTask() on SCC Telkom...`);
+    await page.evaluate(({ t, n }) => {
+      $('#input-ticket').val(t);
+      $('#input-nd').val(n);
+      if (typeof doTask === 'function') {
+        doTask();
       }
-    } catch (e) {
-      console.warn('[Automation Engine Warning]:', e.message);
-    }
+    }, { t: ticketId, n: nd });
 
-    // Step 2: Wait for QC execution and location save
-    console.log(`[Automation Engine] Waiting for QC execution...`);
-    await page.waitForTimeout(8000);
+    // Wait for QC execution and location save
+    console.log(`[Automation Engine] Waiting 10s for QC execution & Geolocation save...`);
+    await page.waitForTimeout(10000);
 
     // Capture final screenshot
     const screenshotBuffer = await page.screenshot({ fullPage: false });
@@ -160,6 +152,6 @@ app.post('/api/scc/process', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n======================================================`);
   console.log(`🚀 SCC Telkom Playwright Automation Engine Active!`);
-  console.log(`🌐 Server running at: http://localhost:${PORT}`);
+  console.log(`🌐 Server running at: http://localhost:3000`);
   console.log(`======================================================\n`);
 });
