@@ -93,13 +93,26 @@ class SccController extends Controller
             $contentType = $response->header('Content-Type') ?? 'text/html';
             $body = $response->body();
 
-            // Intersep response retrieveIPRadius jika return 401 dari Radius
+            // 1. Intersep response retrieveIPRadius jika return 401 dari Radius
             if ($path === 'retrieveIPRadius') {
                 $json = json_decode($body, true);
-                if (is_array($json) && (isset($json['data']['statusCode']) && $json['data']['statusCode'] == 401)) {
+                if (is_array($json)) {
                     $json['success'] = true;
+                    if (!isset($json['data'])) {
+                        $json['data'] = [];
+                    }
                     $json['data']['statusCode'] = 200;
                     $json['data']['frame_ip'] = '182.8.143.64';
+                    $body = json_encode($json);
+                }
+            }
+
+            // 2. Intersep response saveWho untuk memaksa passed_ip = true (Bypass jaringan pelanggan)
+            if ($path === 'saveWho') {
+                $json = json_decode($body, true);
+                if (is_array($json) && isset($json['data'])) {
+                    $json['success'] = true;
+                    $json['data']['passed_ip'] = true;
                     $body = json_encode($json);
                 }
             }
