@@ -1,5 +1,5 @@
 // Content script di scc.telkom.co.id (all frames, document_start)
-// Inject Fake GPS ke halaman SCC Telkom + Ookla Speedtest sebelum script apapun berjalan
+// Inject Fake GPS dengan memuat inject.js (web_accessible_resources) untuk menghindari blokir Content Security Policy (CSP)
 
 chrome.storage.local.get(['scc_lat', 'scc_lng'], function(result) {
   const lat = result.scc_lat;
@@ -7,36 +7,16 @@ chrome.storage.local.get(['scc_lat', 'scc_lng'], function(result) {
 
   if (!lat || !lng) return;
 
-  // Inject ke page context (melewati isolated world) via script tag
+  // Simpan koordinat di dataset HTML element agar bisa dibaca oleh inject.js
+  document.documentElement.dataset.sccLat = lat;
+  document.documentElement.dataset.sccLng = lng;
+
+  // Buat script element yang menunjuk ke inject.js (bukan inline text)
   const script = document.createElement('script');
-  script.textContent = `
-(function() {
-  var _lat = ${parseFloat(lat)};
-  var _lng = ${parseFloat(lng)};
-  var _pos = {
-    coords: {
-      latitude: _lat,
-      longitude: _lng,
-      accuracy: 3,
-      altitude: null,
-      altitudeAccuracy: null,
-      heading: null,
-      speed: null
-    },
-    timestamp: Date.now()
+  script.src = chrome.runtime.getURL('inject.js');
+  script.onload = function() {
+    this.remove();
   };
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition = function(success, error, opts) {
-      if (typeof success === 'function') success(_pos);
-    };
-    navigator.geolocation.watchPosition = function(success, error, opts) {
-      if (typeof success === 'function') success(_pos);
-      return 1;
-    };
-  }
-  console.log('[SCC Tools] Fake GPS ter-inject:', _lat, _lng);
-})();
-  `;
+
   (document.head || document.documentElement).prepend(script);
-  script.remove();
 });
