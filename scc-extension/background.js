@@ -1,18 +1,22 @@
 // Background service worker
-// 1. Menerima koordinat dari form GitHub Pages -> simpan ke chrome.storage
-// 2. Fix cookie SameSite=None agar session SCC Telkom berjalan di dalam iframe
+// 1. Simpan koordinat ODP dari webapp ke storage
+// 2. Buka tab baru SCC Telkom otomatis saat tombol Submit diklik
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'SET_COORDS') {
+  if (message.type === 'SET_COORDS_AND_OPEN') {
+    const { lat, lng, targetUrl } = message;
+
+    // Simpan koordinat ke storage lokal extension
     chrome.storage.local.set({
-      scc_lat: message.lat,
-      scc_lng: message.lng
+      scc_lat: lat,
+      scc_lng: lng
     }, () => {
-      sendResponse({ status: 'ok' });
+      // Buka tab baru ke SCC Telkom secara otomatis
+      chrome.tabs.create({ url: targetUrl, active: true }, (tab) => {
+        sendResponse({ status: 'ok', tabId: tab.id });
+      });
     });
-    return true;
+
+    return true; // Keep channel open for async response
   }
 });
-
-// Remove SameSite restrictions on cookies for scc.telkom.co.id
-chrome.declarativeNetRequest.updateHeadersInSession && chrome.declarativeNetRequest.updateHeadersInSession({});
