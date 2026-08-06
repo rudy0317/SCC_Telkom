@@ -31,4 +31,4 @@ Sistem Form Closing Ticket SCC Telkom yang dilengkapi dengan **Auto-fill Data 43
 
 ---
 
-*System developed by **Rudy** for Telkom Akses Field Technical Operations.*
+*System developed for SCC Field Operations & Technical Support.*
