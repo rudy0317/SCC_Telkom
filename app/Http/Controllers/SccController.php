@@ -69,11 +69,19 @@ class SccController extends Controller
         }
 
         $method = strtolower($request->method());
+        
+        // Pass client Cookie header to Telkom server
+        $incomingCookie = $request->header('Cookie', '');
+
         $headers = [
-            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent' => $request->header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
             'Referer'    => 'https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/',
             'Origin'     => 'https://scc.telkom.co.id',
         ];
+
+        if ($incomingCookie) {
+            $headers['Cookie'] = $incomingCookie;
+        }
 
         try {
             $httpRequest = Http::withHeaders($headers)->withoutVerifying();
@@ -87,7 +95,7 @@ class SccController extends Controller
             $contentType = $response->header('Content-Type') ?? 'text/html';
             $body = $response->body();
 
-            // Jika response berupa HTML utama, injeksikan script Fake GPS & AJAX URL Rewriter
+            // Inject Fake GPS script & AJAX rewriter on initial page render
             if (str_contains($contentType, 'text/html') && !$path) {
                 $lat = (float) $request->input('lat', -3.3194);
                 $lng = (float) $request->input('lng', 114.5908);
@@ -98,7 +106,7 @@ class SccController extends Controller
                         var fakeLat = {$lat};
                         var fakeLng = {$lng};
 
-                        // Override Geolocation
+                        // Override Geolocation API
                         if (navigator.geolocation) {
                             navigator.geolocation.getCurrentPosition = function(success) {
                                 if (typeof success === 'function') {
@@ -119,7 +127,7 @@ class SccController extends Controller
                             };
                         }
 
-                        // Rewrite AJAX calls to pass through Laravel Proxy
+                        // Rewrite relative AJAX calls to pass through Laravel Proxy
                         var origOpen = XMLHttpRequest.prototype.open;
                         XMLHttpRequest.prototype.open = function(method, url, async, user, pass) {
                             if (typeof url === 'string' && url.includes('scc.telkom.co.id')) {
@@ -141,11 +149,25 @@ class SccController extends Controller
                 }
             }
 
-            return response($body, $response->status())
+            $res = response($body, $response->status())
                 ->header('Content-Type', $contentType)
                 ->header('Access-Control-Allow-Origin', '*')
                 ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
                 ->header('Access-Control-Allow-Headers', '*');
+
+            // Forward Set-Cookie headers back to browser client
+            if ($response->hasHeader('Set-Cookie')) {
+                $cookies = $response->header('Set-Cookie');
+                if (is_array($cookies)) {
+                    foreach ($cookies as $c) {
+                        $res->header('Set-Cookie', $c, false);
+                    }
+                } else {
+                    $res->header('Set-Cookie', $cookies, false);
+                }
+            }
+
+            return $res;
 
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
