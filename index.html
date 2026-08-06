@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form SCC Telkom</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --border: #334155;
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --red: #e60000;
+            --accent: #38bdf8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar Kiri - Form */
+        aside {
+            width: 360px;
+            background: var(--panel);
+            border-right: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            flex-shrink: 0;
+        }
+
+        .brand {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .brand span {
+            color: var(--red);
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .input-group input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 12px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: var(--accent);
+        }
+
+        button {
+            background: var(--red);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-top: 8px;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        /* Main Kanan - Result Frame */
+        main {
+            flex: 1;
+            position: relative;
+            background: #000;
+            height: 100vh;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        .placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .placeholder svg {
+            margin-bottom: 12px;
+            opacity: 0.3;
+        }
+
+        /* Responsive Layout untuk Mobile */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                overflow: auto;
+            }
+            aside {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+            main {
+                height: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Panel Kiri: Form Input -->
+    <aside>
+        <div class="brand">SYSTEM <span>SCC TELKOM</span></div>
+        <div style="font-size: 11px; color: var(--accent); margin-top: -18px; font-weight: 600; letter-spacing: 0.5px;">BY RUDY</div>
+
+        <form id="sccForm">
+            <div class="input-group">
+                <label for="ticketId">Nomer Tiket</label>
+                <input type="text" id="ticketId" placeholder="Contoh: INC40660193" required autocomplete="off">
+            </div>
+
+            <div class="input-group">
+                <label for="odpSearch">Cari Nama ODP (Auto-fill)</label>
+                <input type="text" id="odpSearch" list="odpList" placeholder="Ketik nama ODP..." autocomplete="off">
+                <datalist id="odpList"></datalist>
+            </div>
+
+            <div class="input-group">
+                <label for="koordinat">Koordinat ODP</label>
+                <input type="text" id="koordinat" placeholder="Contoh: -6.200000, 106.816666" required autocomplete="off">
+            </div>
+
+            <div class="input-group">
+                <label for="nd">Nomer Internet</label>
+                <input type="text" id="nd" placeholder="Contoh: 162201205432" required autocomplete="off">
+            </div>
+
+            <button type="submit">Submit Check</button>
+        </form>
+    </aside>
+
+    <!-- Panel Kanan: Hasil Speedtest / Frame Embed -->
+    <main>
+        <div class="placeholder" id="placeholder">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polygon points="10 8 16 12 10 16 10 8"></polygon>
+            </svg>
+            <p>Silakan isi data di sebelah kiri<br>lalu klik <b>Submit Check</b>.</p>
+        </div>
+        <iframe id="sccFrame" src="" allow="geolocation" style="display: none;"></iframe>
+    </main>
+
+    <script>
+        const form = document.getElementById('sccForm');
+        const ticketInput = document.getElementById('ticketId');
+        const odpSearch = document.getElementById('odpSearch');
+        const odpList = document.getElementById('odpList');
+        const koordinatInput = document.getElementById('koordinat');
+        const ndInput = document.getElementById('nd');
+        const iframe = document.getElementById('sccFrame');
+        const placeholder = document.getElementById('placeholder');
+
+        window.fakeLat = 0;
+        window.fakeLng = 0;
+        let odpMap = new Map();
+
+        // Load ODP Data for Autocomplete
+        fetch('odp.json')
+            .then(res => res.json())
+            .then(data => {
+                const fragment = document.createDocumentFragment();
+                data.forEach(item => {
+                    odpMap.set(item.n, `${item.la}, ${item.lo}`);
+                    const option = document.createElement('option');
+                    option.value = item.n;
+                    fragment.appendChild(option);
+                });
+                odpList.appendChild(fragment);
+            })
+            .catch(err => console.log('ODP Data load skipped/failed', err));
+
+        // Auto-fill koordinat pas ODP dipilih
+        odpSearch.addEventListener('input', function() {
+            const val = this.value.trim();
+            if (odpMap.has(val)) {
+                koordinatInput.value = odpMap.get(val);
+            }
+        });
+
+        // Silent Geolocation Override
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition = function(success, error, options) {
+                if (window.fakeLat && window.fakeLng) {
+                    success({
+                        coords: {
+                            latitude: window.fakeLat,
+                            longitude: window.fakeLng,
+                            accuracy: 3,
+                            altitude: null,
+                            altitudeAccuracy: null,
+                            heading: null,
+                            speed: null
+                        },
+                        timestamp: Date.now()
+                    });
+                } else {
+                    error({ code: 1, message: "Position unavailable" });
+                }
+            };
+
+            navigator.geolocation.watchPosition = function(success, error, options) {
+                navigator.geolocation.getCurrentPosition(success, error, options);
+                return 1;
+            };
+        }
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const ticketId = ticketInput.value.trim();
+            const rawCoords = koordinatInput.value.trim();
+            const nd = ndInput.value.trim();
+
+            const parts = rawCoords.split(',').map(s => s.trim());
+            if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                window.fakeLat = parseFloat(parts[0]);
+                window.fakeLng = parseFloat(parts[1]);
+            }
+
+            const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
+
+            placeholder.style.display = 'none';
+            iframe.style.display = 'block';
+            iframe.src = targetUrl;
+        });
+    </script>
+</body>
+</html>

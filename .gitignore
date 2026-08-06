@@ -1,0 +1,5 @@
+# Ignore raw excel & temp files
+Data ODP/
+~$*.xlsx
+*.xlsx
+.DS_Store
