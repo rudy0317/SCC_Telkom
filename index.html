@@ -397,9 +397,6 @@
         const frameContainer = document.getElementById('frameContainer');
         const openTabBtn = document.getElementById('openTabBtn');
 
-        // Cloudflare Worker Proxy URL
-        const WORKER_URL = 'https://scc-proxy.rudy2310010148.workers.dev';
-
         form.addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -421,12 +418,19 @@
                 lng = parseFloat(parts[1]);
             }
 
-            const targetUrl = `${WORKER_URL}?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}&lat=${lat}&lng=${lng}`;
+            const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
+
+            // Kirim koordinat ke SCC Tools Extension sebelum iframe dibuka
+            window.postMessage({ type: 'SCC_COORDS', lat: lat, lng: lng }, '*');
 
             placeholder.style.display = 'none';
             frameContainer.style.display = 'block';
-            iframe.src = targetUrl;
             openTabBtn.href = targetUrl;
+
+            // Delay 200ms biar extension sempat simpan koordinat sebelum iframe dimuat
+            setTimeout(() => {
+                iframe.src = targetUrl;
+            }, 200);
         });
     </script>
 </body>
