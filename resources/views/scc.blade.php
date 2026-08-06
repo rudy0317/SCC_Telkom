@@ -14,6 +14,7 @@
             --muted: #94a3b8;
             --red: #e60000;
             --accent: #38bdf8;
+            --green: #22c55e;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -21,7 +22,7 @@
 
         aside {
             width: 360px; background: var(--panel); border-right: 1px solid var(--border);
-            padding: 24px; display: flex; flex-direction: column; gap: 24px; flex-shrink: 0;
+            padding: 24px; display: flex; flex-direction: column; gap: 20px; flex-shrink: 0;
         }
 
         .brand { font-size: 16px; font-weight: 700; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; }
@@ -52,8 +53,19 @@
         }
         button:hover { opacity: 0.9; }
 
-        main { flex: 1; position: relative; background: #000; height: 100vh; }
-        iframe { width: 100%; height: 100%; border: none; display: block; }
+        .status-badge {
+            background: rgba(34, 197, 94, 0.15); border: 1px solid var(--green); color: var(--green);
+            padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; text-align: center;
+        }
+
+        main { flex: 1; position: relative; background: #000; height: 100vh; display: flex; flex-direction: column; }
+        .top-bar {
+            background: var(--panel); border-bottom: 1px solid var(--border); padding: 10px 16px;
+            display: none; align-items: center; justify-content: space-between; font-size: 13px;
+        }
+        .top-bar .active-gps { color: var(--green); font-weight: 600; }
+
+        iframe { width: 100%; flex: 1; border: none; display: block; }
 
         .placeholder {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -63,7 +75,7 @@
         @media (max-width: 768px) {
             body { flex-direction: column; overflow: auto; }
             aside { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
-            main { height: 600px; }
+            main { height: 650px; }
         }
     </style>
 </head>
@@ -71,7 +83,9 @@
 
     <aside>
         <div class="brand">SYSTEM <span>SCC TELKOM</span></div>
-        <div style="font-size: 11px; color: var(--accent); margin-top: -18px; font-weight: 600;">LARAVEL SERVER PROXY v2.0</div>
+        <div style="font-size: 11px; color: var(--accent); margin-top: -14px; font-weight: 600;">FAKE GPS INJECTOR ACTIVE</div>
+
+        <div class="status-badge">⚡ SILENT GEOLOCATION READY</div>
 
         <form id="sccForm">
             <div class="input-group">
@@ -80,7 +94,7 @@
             </div>
 
             <div class="input-group">
-                <label for="odpSearch">Cari ODP (Instant Server Search)</label>
+                <label for="odpSearch">Cari ODP (Auto-fill Tikor GPS)</label>
                 <input type="text" id="odpSearch" placeholder="Ketik nama ODP..." required autocomplete="off">
                 <div class="suggestions" id="suggestions"></div>
             </div>
@@ -93,13 +107,22 @@
             <input type="hidden" id="selectedLat" value="">
             <input type="hidden" id="selectedLng" value="">
 
-            <button type="submit">Submit Check (Reverse Proxy)</button>
+            <button type="submit">Submit Check & Inject GPS</button>
         </form>
     </aside>
 
     <main>
+        <div class="top-bar" id="topBar">
+            <div>
+                📍 Fake GPS Active: <span class="active-gps" id="currentGpsText">-3.3194, 114.5908</span>
+            </div>
+            <div style="font-size: 11px; color: var(--muted);">
+                Tikor ODP otomatis terinjeksi saat tahap Speedtest.
+            </div>
+        </div>
+
         <div class="placeholder" id="placeholder">
-            <p>Silakan isi form di sebelah kiri<br>lalu klik <b>Submit Check</b>.</p>
+            <p>Silakan isi form di sebelah kiri<br>lalu klik <b>Submit Check & Inject GPS</b>.</p>
         </div>
         <iframe id="sccFrame" src="" style="display: none;"></iframe>
     </main>
@@ -112,6 +135,8 @@
         const form = document.getElementById('sccForm');
         const iframe = document.getElementById('sccFrame');
         const placeholder = document.getElementById('placeholder');
+        const topBar = document.getElementById('topBar');
+        const currentGpsText = document.getElementById('currentGpsText');
 
         let debounceTimer;
 
@@ -161,6 +186,9 @@
             const nd = document.getElementById('nd').value.trim();
             const lat = latInput.value || -3.3194;
             const lng = lngInput.value || 114.5908;
+
+            currentGpsText.textContent = `${lat}, ${lng}`;
+            topBar.style.display = 'flex';
 
             const proxyUrl = `/scc/proxy?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}&lat=${lat}&lng=${lng}`;
 
