@@ -8,10 +8,19 @@ window.addEventListener('message', function(event) {
   const { lat, lng, targetUrl } = event.data;
   if (!lat || !lng) return;
 
-  chrome.runtime.sendMessage({
-    type: 'SET_COORDS_AND_OPEN',
-    lat: lat,
-    lng: lng,
-    targetUrl: targetUrl
-  });
+  // Cek keabsahan konteks chrome.runtime (mencegah error jika ekstensi baru saja di-reload)
+  if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+    try {
+      chrome.runtime.sendMessage({
+        type: 'SET_COORDS_AND_OPEN',
+        lat: lat,
+        lng: lng,
+        targetUrl: targetUrl
+      });
+    } catch (e) {
+      console.warn('[SCC Tools] Extension context reloaded. Silahkan refresh halaman webapp.');
+    }
+  } else {
+    console.warn('[SCC Tools] chrome.runtime belum siap. Silahkan refresh halaman webapp.');
+  }
 });
