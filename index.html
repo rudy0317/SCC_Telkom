@@ -149,9 +149,88 @@
                 height: 600px;
             }
         }
+    <style>
+        /* Modal Lock Screen */
+        .lock-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lock-box {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 32px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .lock-box h3 {
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: 18px;
+        }
+
+        .lock-box p {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .lock-box input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 12px;
+            font-size: 14px;
+            outline: none;
+            text-align: center;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+        }
+
+        .lock-box input:focus {
+            border-color: var(--accent);
+        }
+
+        .lock-box button {
+            width: 100%;
+            margin-top: 0;
+        }
+
+        .error-msg {
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 8px;
+            display: none;
+        }
     </style>
 </head>
 <body>
+
+    <!-- Lock Screen Modal -->
+    <div class="lock-overlay" id="lockOverlay">
+        <div class="lock-box">
+            <h3>🔒 AUTHENTICATION REQUIRED</h3>
+            <p>Masukkan Access Key untuk membuka SCC Tools</p>
+            <input type="password" id="accessKeyInput" placeholder="••••••••" autocomplete="off">
+            <button type="button" id="unlockBtn">Buka Akses</button>
+            <div class="error-msg" id="errorMsg">Access Key Salah! Hubungi Admin.</div>
+        </div>
+    </div>
 
     <!-- Panel Kiri: Form Input -->
     <aside>
@@ -205,25 +284,76 @@
         const ndInput = document.getElementById('nd');
         const iframe = document.getElementById('sccFrame');
         const placeholder = document.getElementById('placeholder');
+        const lockOverlay = document.getElementById('lockOverlay');
+        const accessKeyInput = document.getElementById('accessKeyInput');
+        const unlockBtn = document.getElementById('unlockBtn');
+        const errorMsg = document.getElementById('errorMsg');
 
         window.fakeLat = 0;
         window.fakeLng = 0;
         let odpMap = new Map();
 
-        // Load ODP Data for Autocomplete
-        fetch('odp.json')
-            .then(res => res.json())
-            .then(data => {
-                const fragment = document.createDocumentFragment();
-                data.forEach(item => {
-                    odpMap.set(item.n, `${item.la}, ${item.lo}`);
-                    const option = document.createElement('option');
-                    option.value = item.n;
-                    fragment.appendChild(option);
-                });
-                odpList.appendChild(fragment);
-            })
-            .catch(err => console.log('ODP Data load skipped/failed', err));
+        // Password Validation Logic (Hash Target: "RUDY111" -> sha256)
+        // SHA-256 for "RUDY111": a8ca718b5b6329bb6d6ce3ddbeee9bd711311ffbcebf9d7a22eb845feec8ee6d
+        const TARGET_HASH = "a8ca718b5b6329bb6d6ce3ddbeee9bd711311ffbcebf9d7a22eb845feec8ee6d";
+
+        async function sha256(str) {
+            const buffer = new TextEncoder().encode(str);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function verifyAccess(key) {
+            const hash = await sha256(key);
+            if (hash === TARGET_HASH) {
+                localStorage.setItem('scc_auth', key);
+                lockOverlay.style.display = 'none';
+                loadODPData();
+            } else {
+                errorMsg.style.display = 'block';
+            }
+        }
+
+        unlockBtn.addEventListener('click', () => {
+            verifyAccess(accessKeyInput.value.trim());
+        });
+
+        accessKeyInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') verifyAccess(accessKeyInput.value.trim());
+        });
+
+        // Auto Check Stored Auth
+        (async function checkStoredAuth() {
+            const savedKey = localStorage.getItem('scc_auth');
+            if (savedKey) {
+                const hash = await sha256(savedKey);
+                if (hash === TARGET_HASH) {
+                    lockOverlay.style.display = 'none';
+                    loadODPData();
+                    return;
+                }
+            }
+            lockOverlay.style.display = 'flex';
+        })();
+
+        // Load ODP Data only after verified
+        function loadODPData() {
+            if (odpMap.size > 0) return;
+            fetch('odp.json')
+                .then(res => res.json())
+                .then(data => {
+                    const fragment = document.createDocumentFragment();
+                    data.forEach(item => {
+                        odpMap.set(item.n, `${item.la}, ${item.lo}`);
+                        const option = document.createElement('option');
+                        option.value = item.n;
+                        fragment.appendChild(option);
+                    });
+                    odpList.appendChild(fragment);
+                })
+                .catch(err => console.log('ODP Data load skipped/failed', err));
+        }
 
         // Auto-fill koordinat pas ODP dipilih
         odpSearch.addEventListener('input', function() {
