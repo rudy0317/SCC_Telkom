@@ -59,89 +59,96 @@ class SccController extends Controller
         return response()->json($filtered);
     }
 
-    public function proxyCloseTicket(Request $request)
+    public function proxyCloseTicket(Request $request, $path = '')
     {
-        $ticketId = $request->input('ticketId');
-        $nd = $request->input('nd');
-        $lat = (float) $request->input('lat', -3.3194);
-        $lng = (float) $request->input('lng', 114.5908);
+        $targetBase = "https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/";
+        $targetUrl = $path ? $targetBase . $path : $targetBase;
 
-        $targetUrl = "https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=" . urlencode($ticketId) . "&nd=" . urlencode($nd);
+        if ($request->getQueryString()) {
+            $targetUrl .= '?' . $request->getQueryString();
+        }
+
+        $method = strtolower($request->method());
+        $headers = [
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer'    => 'https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/',
+            'Origin'     => 'https://scc.telkom.co.id',
+        ];
 
         try {
-            $response = Http::withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer'    => 'https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/',
-            ])->withoutVerifying()->get($targetUrl);
+            $httpRequest = Http::withHeaders($headers)->withoutVerifying();
 
-            $html = $response->body();
-
-            // Inject Base Tag & Fake GPS script into HTML HEAD
-            $baseHref = '<base href="https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/">';
-            $fakeGpsScript = "
-            {$baseHref}
-            <script>
-                (function() {
-                    var fakeLat = {$lat};
-                    var fakeLng = {$lng};
-                    console.log('[Laravel Proxy] Injected ODP Coordinates:', fakeLat, fakeLng);
-
-                    if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition = function(success, error, options) {
-                            console.log('[Laravel Proxy] getCurrentPosition intercepted -> returning fake coords');
-                            if (typeof success === 'function') {
-                                success({
-                                    coords: {
-                                        latitude: fakeLat,
-                                        longitude: fakeLng,
-                                        accuracy: 3,
-                                        altitude: null,
-                                        altitudeAccuracy: null,
-                                        heading: null,
-                                        speed: null
-                                    },
-                                    timestamp: Date.now()
-                                });
-                            }
-                        };
-
-                        navigator.geolocation.watchPosition = function(success, error, options) {
-                            console.log('[Laravel Proxy] watchPosition intercepted -> returning fake coords');
-                            if (typeof success === 'function') {
-                                success({
-                                    coords: {
-                                        latitude: fakeLat,
-                                        longitude: fakeLng,
-                                        accuracy: 3,
-                                        altitude: null,
-                                        altitudeAccuracy: null,
-                                        heading: null,
-                                        speed: null
-                                    },
-                                    timestamp: Date.now()
-                                });
-                            }
-                            return 1;
-                        };
-                    }
-                })();
-            </script>
-            ";
-
-            if (str_contains($html, '<head>')) {
-                $html = str_replace('<head>', '<head>' . $fakeGpsScript, $html);
+            if ($method === 'post') {
+                $response = $httpRequest->asForm()->post($targetUrl, $request->all());
             } else {
-                $html = $fakeGpsScript . $html;
+                $response = $httpRequest->get($targetUrl);
             }
 
-            return response($html, 200)
-                ->header('Content-Type', 'text/html; charset=UTF-8')
-                ->header('X-Frame-Options', 'ALLOWALL');
+            $contentType = $response->header('Content-Type') ?? 'text/html';
+            $body = $response->body();
+
+            // Jika response berupa HTML utama, injeksikan script Fake GPS & AJAX URL Rewriter
+            if (str_contains($contentType, 'text/html') && !$path) {
+                $lat = (float) $request->input('lat', -3.3194);
+                $lng = (float) $request->input('lng', 114.5908);
+
+                $proxyScript = "
+                <script>
+                    (function() {
+                        var fakeLat = {$lat};
+                        var fakeLng = {$lng};
+
+                        // Override Geolocation
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition = function(success) {
+                                if (typeof success === 'function') {
+                                    success({
+                                        coords: { latitude: fakeLat, longitude: fakeLng, accuracy: 3, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
+                                        timestamp: Date.now()
+                                    });
+                                }
+                            };
+                            navigator.geolocation.watchPosition = function(success) {
+                                if (typeof success === 'function') {
+                                    success({
+                                        coords: { latitude: fakeLat, longitude: fakeLng, accuracy: 3, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
+                                        timestamp: Date.now()
+                                    });
+                                }
+                                return 1;
+                            };
+                        }
+
+                        // Rewrite AJAX calls to pass through Laravel Proxy
+                        var origOpen = XMLHttpRequest.prototype.open;
+                        XMLHttpRequest.prototype.open = function(method, url, async, user, pass) {
+                            if (typeof url === 'string' && url.includes('scc.telkom.co.id')) {
+                                var parts = url.split('/Check_embededv1/');
+                                if (parts.length > 1) {
+                                    url = '/scc/proxy/' + parts[1];
+                                }
+                            }
+                            return origOpen.call(this, method, url, async, user, pass);
+                        };
+                    })();
+                </script>
+                ";
+
+                if (str_contains($body, '<head>')) {
+                    $body = str_replace('<head>', '<head>' . $proxyScript, $body);
+                } else {
+                    $body = $proxyScript . $body;
+                }
+            }
+
+            return response($body, $response->status())
+                ->header('Content-Type', $contentType)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', '*');
 
         } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Gagal terhubung ke SCC Telkom: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 }
