@@ -1,22 +1,23 @@
 // Content script di scc.telkom.co.id (all frames, document_start)
-// Inject Fake GPS dengan memuat inject.js (web_accessible_resources) untuk menghindari blokir Content Security Policy (CSP)
+// Inject inject.js secara SINKRON di awal document_start sebelum script apapun di halaman berjalan
 
-chrome.storage.local.get(['scc_lat', 'scc_lng'], function(result) {
-  const lat = result.scc_lat;
-  const lng = result.scc_lng;
-
-  if (!lat || !lng) return;
-
-  // Simpan koordinat di dataset HTML element agar bisa dibaca oleh inject.js
-  document.documentElement.dataset.sccLat = lat;
-  document.documentElement.dataset.sccLng = lng;
-
-  // Buat script element yang menunjuk ke inject.js (bukan inline text)
+(function() {
+  // Inject script inject.js secepat mungkin secara sinkron
   const script = document.createElement('script');
   script.src = chrome.runtime.getURL('inject.js');
+  (document.head || document.documentElement).prepend(script);
   script.onload = function() {
     this.remove();
   };
 
-  (document.head || document.documentElement).prepend(script);
-});
+  // Ambil koordinat dari chrome.storage lalu kirim via postMessage ke inject.js
+  chrome.storage.local.get(['scc_lat', 'scc_lng'], function(result) {
+    if (result.scc_lat && result.scc_lng) {
+      window.postMessage({
+        type: 'UPDATE_SCC_COORDS',
+        lat: result.scc_lat,
+        lng: result.scc_lng
+      }, '*');
+    }
+  });
+})();
