@@ -249,49 +249,68 @@ app.post('/api/scc/process-stream', async (req, res) => {
 
     sendEvent('status', { message: '📍 CDP Geolocation Active. Waiting for QC flow...', color: '#22c55e' });
 
-    // Auto-drive loop: 45 seconds
-    // Inject `rest` variable, enable `#submit-speed`, and auto-click buttons
-    for (let i = 0; i < 45; i++) {
+    // Auto-drive loop: 120 seconds max
+    // State flags tracked ON THE PAGE via window.__automation
+    for (let i = 0; i < 120; i++) {
       await page.waitForTimeout(1000);
       try {
         if (page && !page.isClosed()) {
           const actionLog = await page.evaluate((mockResult) => {
+            // Initialize state tracker (persists across evaluate calls)
+            if (!window.__automation) {
+              window.__automation = {
+                restInjected: false,
+                speedClicked: false
+              };
+            }
+            const state = window.__automation;
             let actions = [];
 
-            // Inject `rest` variable if null (Ookla iframe result placeholder)
-            if (typeof rest === 'undefined' || rest === null) {
-              window.rest = mockResult;
-              actions.push('Injected rest variable');
-            }
-
-            // Force enable #submit-speed and trigger click
-            if ($('#submit-speed').length && $('#submit-speed').hasClass('disabled')) {
-              $('#submit-speed').removeClass('disabled').addClass('enabled');
-              actions.push('Enabled #submit-speed');
-            }
-
-            // Auto-click enabled submit-speed
-            if ($('#submit-speed').length && $('#submit-speed').hasClass('enabled') && !$('#submit-speed').hasClass('hide')) {
-              $('#submit-speed').trigger('click');
-              actions.push('Clicked #submit-speed');
-            }
-
-            // Auto-click any visible continue/lanjut/ok buttons
-            const buttons = Array.from(document.querySelectorAll('button, a.btn, input[type="button"], input[type="submit"]'));
-            buttons.forEach(btn => {
-              const text = (btn.innerText || btn.value || '').toLowerCase();
-              const isTarget = text.includes('continue') || text.includes('lanjut') || text.includes('close ticket') || text.includes('ok');
-              if (isTarget && !btn.disabled && btn.offsetParent !== null) {
-                btn.click();
-                actions.push('Clicked: ' + text.trim().substring(0, 30));
+            // Step 1: Inject `rest` variable ONCE when speedtest modal is visible
+            if (!state.restInjected && (typeof rest === 'undefined' || rest === null)) {
+              // Only inject when the ookla modal is actually showing
+              if ($('#ookla-test').length && $('#ookla-test').is(':visible')) {
+                window.rest = mockResult;
+                state.restInjected = true;
+                actions.push('Injected rest (once)');
               }
-            });
+            }
+
+            // Step 2: Enable + click #submit-speed ONCE
+            if (!state.speedClicked && state.restInjected) {
+              if ($('#submit-speed').length) {
+                $('#submit-speed').removeClass('disabled').addClass('enabled');
+                $('#submit-speed').trigger('click');
+                state.speedClicked = true;
+                actions.push('Enabled + Clicked #submit-speed (once)');
+              }
+            }
+
+            // Step 3: Report current visible step for live status
+            let currentStep = '';
+            if ($('#ask-ticket').is(':visible')) currentStep = 'Input Ticket';
+            else if ($('#show-check').is(':visible')) currentStep = 'Checking...';
+            else if ($('#ookla-test').is(':visible')) currentStep = 'Speedtest Modal';
+            else if ($('#show-finish').is(':visible')) currentStep = 'FINISHED';
+            else if ($('#show-location').is(':visible')) currentStep = 'Saving Location';
+            if (currentStep) actions.push('Step: ' + currentStep);
 
             return actions;
           }, MOCK_SPEEDTEST_RESULT);
 
           if (actionLog.length > 0) {
-            sendEvent('status', { message: `🤖 [Cycle ${i+1}] ${actionLog.join(' | ')}`, color: '#38bdf8' });
+            sendEvent('status', { message: `🤖 [${i+1}s] ${actionLog.join(' | ')}`, color: '#38bdf8' });
+          }
+
+          // Early exit if finished
+          const isFinished = await page.evaluate(() => {
+            return $('#show-finish').is(':visible') || 
+                   document.body.innerText.includes('Berhasil') ||
+                   document.body.innerText.includes('Success');
+          });
+          if (isFinished) {
+            sendEvent('status', { message: '🎉 QC Ticket Closed Successfully!', color: '#22c55e' });
+            break;
           }
         }
       } catch (e) {}
