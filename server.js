@@ -49,8 +49,8 @@ app.get('/api/odp/search', (req, res) => {
   return res.json(results);
 });
 
-// 2. Playwright CDP Automation Endpoint
-app.post('/api/scc/process', async (req, res) => {
+// 2. Playwright Realtime SSE Streaming Endpoint
+app.post('/api/scc/process-stream', async (req, res) => {
   const { ticketId, nd, lat, lng } = req.body;
 
   if (!ticketId || !nd || !lat || !lng) {
@@ -60,13 +60,20 @@ app.post('/api/scc/process', async (req, res) => {
   const targetLat = parseFloat(lat);
   const targetLng = parseFloat(lng);
 
-  console.log(`\n==============================================`);
-  console.log(`[Automation Engine] Processing Ticket: ${ticketId}`);
-  console.log(`[Automation Engine] ND: ${nd}`);
-  console.log(`[Automation Engine] Native CDP Geolocation: Lat ${targetLat}, Lng ${targetLng}`);
-  console.log(`==============================================\n`);
+  // Setup Server-Sent Events (SSE) Stream
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const sendEvent = (event, data) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  sendEvent('status', { message: '🚀 Launching Chromium Native CDP Browser...', color: '#38bdf8' });
 
   let browser;
+  let streamInterval;
+
   try {
     browser = await chromium.launch({
       headless: true,
@@ -87,9 +94,6 @@ app.post('/api/scc/process', async (req, res) => {
 
     const page = await context.newPage();
 
-    // Log browser console output
-    page.on('console', msg => console.log('[Browser Console]:', msg.text()));
-
     // Set Native CDP Geolocation Emulation explicitly
     const client = await context.newCDPSession(page);
     await client.send('Emulation.setGeolocationOverride', {
@@ -98,17 +102,27 @@ app.post('/api/scc/process', async (req, res) => {
       accuracy: 3
     });
 
+    // Start 300ms Realtime Screen Frame Streaming
+    streamInterval = setInterval(async () => {
+      try {
+        if (page && !page.isClosed()) {
+          const imgBuffer = await page.screenshot({ type: 'jpeg', quality: 50 });
+          sendEvent('frame', { image: `data:image/jpeg;base64,${imgBuffer.toString('base64')}` });
+        }
+      } catch (e) {
+        // Ignored during page navigation
+      }
+    }, 300);
+
     const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
-    console.log(`[Automation Engine] Navigating to: ${targetUrl}`);
+    sendEvent('status', { message: `🌐 Navigating to SCC Telkom URL...`, color: '#f59e0b' });
 
     await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-    // Wait for jQuery & doTask function to be ready
-    console.log(`[Automation Engine] Waiting for SCC Telkom scripts...`);
+    sendEvent('status', { message: '⌛ Waiting for SCC Telkom scripts to settle...', color: '#f59e0b' });
     await page.waitForFunction(() => typeof $ !== 'undefined' && typeof doTask === 'function', { timeout: 30000 });
 
-    // Execute doTask() directly via evaluate (bypasses element visibility limits)
-    console.log(`[Automation Engine] Executing doTask() on SCC Telkom...`);
+    sendEvent('status', { message: '⚡ Executing doTask() form submit with ODP Geolocation...', color: '#38bdf8' });
     await page.evaluate(({ t, n }) => {
       $('#input-ticket').val(t);
       $('#input-nd').val(n);
@@ -117,35 +131,28 @@ app.post('/api/scc/process', async (req, res) => {
       }
     }, { t: ticketId, n: nd });
 
-    // Wait for QC execution and location save
-    console.log(`[Automation Engine] Waiting 10s for QC execution & Geolocation save...`);
-    await page.waitForTimeout(10000);
+    sendEvent('status', { message: '📍 Native CDP Geolocation Injected & Running QC...', color: '#22c55e' });
+    await page.waitForTimeout(8000);
 
-    // Capture final screenshot
-    const screenshotBuffer = await page.screenshot({ fullPage: false });
-    const screenshotBase64 = screenshotBuffer.toString('base64');
-    const pageTitle = await page.title();
+    sendEvent('status', { message: '✅ QC & Geolocation Process Completed Successfully!', color: '#22c55e' });
 
+    // Send final high quality screenshot
+    const finalBuffer = await page.screenshot({ type: 'png' });
+    sendEvent('frame', { image: `data:image/png;base64,${finalBuffer.toString('base64')}` });
+    sendEvent('done', { success: true });
+
+    clearInterval(streamInterval);
     await browser.close();
-
-    return res.json({
-      success: true,
-      message: 'SCC Ticket Processed & Submitted with Native CDP Geolocation!',
-      ticketId,
-      nd,
-      coordinates: { lat: targetLat, lng: targetLng },
-      pageTitle,
-      screenshot: `data:image/png;base64,${screenshotBase64}`
-    });
+    res.end();
 
   } catch (error) {
     console.error('[Automation Engine Error]:', error.message);
+    if (streamInterval) clearInterval(streamInterval);
     if (browser) await browser.close();
 
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    sendEvent('status', { message: `❌ Error: ${error.message}`, color: '#ef4444' });
+    sendEvent('done', { success: false, error: error.message });
+    res.end();
   }
 });
 

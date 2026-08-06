@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SCC Telkom - Playwright Automation Engine</title>
+    <title>SCC Telkom - Playwright Realtime Streaming Engine</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e60000'/%3E%3Cpath d='M8 10h16v3H8zm6 3h4v10h-4z' fill='%23ffffff'/%3E%3C/svg%3E">
     <style>
         :root {
@@ -69,9 +69,16 @@
             display: flex; align-items: center; justify-content: space-between; font-size: 13px;
         }
 
+        .live-tag {
+            background: rgba(239, 68, 68, 0.2); border: 1px solid var(--red); color: var(--red);
+            padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+            animation: pulse 1.5s infinite; display: none;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
         .preview-container {
             flex: 1; display: flex; align-items: center; justify-content: center;
-            background: #000; padding: 20px; overflow: auto;
+            background: #000; padding: 20px; overflow: auto; position: relative;
         }
 
         .preview-img {
@@ -81,6 +88,13 @@
 
         .placeholder-box {
             text-align: center; color: var(--muted); font-size: 14px; max-width: 400px;
+        }
+
+        .console-log {
+            position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 12px;
+            font-family: monospace; color: var(--accent); max-height: 80px; overflow-y: auto;
+            backdrop-filter: blur(8px); display: none;
         }
 
         .spinner {
@@ -100,7 +114,7 @@
 
     <aside>
         <div class="brand">SYSTEM <span>SCC TELKOM</span></div>
-        <div class="engine-badge">🤖 PLAYWRIGHT NATIVE CDP ENGINE v2.0</div>
+        <div class="engine-badge">⚡ REALTIME PLAYWRIGHT CDP STREAM v2.5</div>
 
         <form id="sccForm">
             <div class="input-group">
@@ -124,19 +138,20 @@
 
             <button type="submit" id="submitBtn">
                 <div class="spinner" id="btnSpinner"></div>
-                <span id="btnText">Execute CDP Native GPS QC</span>
+                <span id="btnText">Start Realtime CDP Stream</span>
             </button>
         </form>
 
         <div style="font-size: 11px; color: var(--muted); line-height: 1.5; margin-top: auto;">
-            ⚡ <b>Playwright CDP Engine</b> me-set lokasi ODP secara native di tingkat Browser Engine (Emulation.setGeolocationOverride). Tembus 100% tanpa dialog GPS / iframe restriction.
+            🔴 <b>Realtime Stream</b>: Tampilan browser Playwright disiarkan secara live ke layar HP/Desktop teknisi (3 FPS). 100% transparan & tanpa delay.
         </div>
     </aside>
 
     <main>
         <div class="status-bar">
-            <div>
-                <span>Status Engine: </span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span class="live-tag" id="liveTag">LIVE STREAM</span>
+                <span>Status: </span>
                 <strong id="engineStatus" style="color: var(--accent);">Ready</strong>
             </div>
             <div id="gpsStatusText" style="font-size: 12px; color: var(--muted);">
@@ -147,13 +162,13 @@
         <div class="preview-container">
             <div class="placeholder-box" id="placeholder">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 12px; opacity: 0.4;">
-                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                    <line x1="8" y1="21" x2="16" y2="21"></line>
-                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                 </svg>
-                <p>Isi data di sebelah kiri lalu klik <b>Execute CDP Native GPS QC</b>.<br>Hasil render browser Playwright akan muncul di sini secara live.</p>
+                <p>Isi data di sebelah kiri lalu klik <b>Start Realtime CDP Stream</b>.<br>Disiarkan secara live dari browser headless Playwright.</p>
             </div>
-            <img id="previewImg" class="preview-img" src="" alt="Playwright Live Render Preview">
+            <img id="previewImg" class="preview-img" src="" alt="Playwright Live Screen Stream">
+            <div class="console-log" id="consoleLog"></div>
         </div>
     </main>
 
@@ -170,6 +185,8 @@
         const previewImg = document.getElementById('previewImg');
         const engineStatus = document.getElementById('engineStatus');
         const gpsStatusText = document.getElementById('gpsStatusText');
+        const liveTag = document.getElementById('liveTag');
+        const consoleLog = document.getElementById('consoleLog');
 
         let debounceTimer;
 
@@ -223,31 +240,64 @@
 
             submitBtn.disabled = true;
             btnSpinner.style.display = 'block';
-            btnText.textContent = 'Launching Headless Chrome CDP...';
-            engineStatus.textContent = 'Processing Native CDP Geolocation...';
-            engineStatus.style.color = '#eab308';
+            btnText.textContent = 'Connecting Live Stream...';
+            liveTag.style.display = 'inline-block';
+            consoleLog.style.display = 'block';
+            consoleLog.innerHTML = '';
             gpsStatusText.textContent = `GPS Target: ${lat}, ${lng}`;
 
             try {
-                const response = await fetch('/api/scc/process', {
+                const response = await fetch('/api/scc/process-stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ticketId, nd, lat, lng })
                 });
 
-                const result = await response.json();
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
 
-                if (result.success) {
-                    engineStatus.textContent = 'QC Completed Successfully!';
-                    engineStatus.style.color = 'var(--green)';
-                    placeholder.style.display = 'none';
-                    previewImg.src = result.screenshot;
-                    previewImg.style.display = 'block';
-                } else {
-                    engineStatus.textContent = 'Error: ' + (result.error || 'Failed to process');
-                    engineStatus.style.color = '#ef4444';
-                    alert('Error: ' + result.error);
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop() || '';
+
+                    for (const block of lines) {
+                        const eventMatch = block.match(/^event:\s*(.+)$/m);
+                        const dataMatch = block.match(/^data:\s*(.+)$/m);
+
+                        if (eventMatch && dataMatch) {
+                            const event = eventMatch[1].trim();
+                            const data = JSON.parse(dataMatch[1].trim());
+
+                            if (event === 'frame') {
+                                placeholder.style.display = 'none';
+                                previewImg.src = data.image;
+                                previewImg.style.display = 'block';
+                            } else if (event === 'status') {
+                                engineStatus.textContent = data.message;
+                                engineStatus.style.color = data.color || 'var(--accent)';
+                                const logDiv = document.createElement('div');
+                                logDiv.textContent = `> ${data.message}`;
+                                consoleLog.appendChild(logDiv);
+                                consoleLog.scrollTop = consoleLog.scrollHeight;
+                            } else if (event === 'done') {
+                                liveTag.style.display = 'none';
+                                if (data.success) {
+                                    engineStatus.textContent = 'QC Completed Successfully!';
+                                    engineStatus.style.color = 'var(--green)';
+                                } else {
+                                    engineStatus.textContent = 'Error: ' + data.error;
+                                    engineStatus.style.color = '#ef4444';
+                                }
+                            }
+                        }
+                    }
                 }
+
             } catch (err) {
                 engineStatus.textContent = 'Error executing automation';
                 engineStatus.style.color = '#ef4444';
@@ -255,7 +305,8 @@
             } finally {
                 submitBtn.disabled = false;
                 btnSpinner.style.display = 'none';
-                btnText.textContent = 'Execute CDP Native GPS QC';
+                liveTag.style.display = 'none';
+                btnText.textContent = 'Start Realtime CDP Stream';
             }
         });
     </script>
