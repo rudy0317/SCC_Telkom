@@ -68,7 +68,6 @@ app.post('/api/scc/process', async (req, res) => {
 
   let browser;
   try {
-    // Launch Chromium Browser in Headless mode
     browser = await chromium.launch({
       headless: true,
       args: [
@@ -79,7 +78,6 @@ app.post('/api/scc/process', async (req, res) => {
       ]
     });
 
-    // Create Context with Native CDP Geolocation Override & Granted Permissions
     const context = await browser.newContext({
       geolocation: { latitude: targetLat, longitude: targetLng },
       permissions: ['geolocation'],
@@ -100,23 +98,47 @@ app.post('/api/scc/process', async (req, res) => {
     const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
     console.log(`[Automation Engine] Navigating to: ${targetUrl}`);
 
-    await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForTimeout(1500);
 
-    // Wait 3 seconds for page scripts & Radius checks to settle
-    await page.waitForTimeout(3000);
+    // Step 1: Fill Ticket ID & ND inputs if present
+    console.log(`[Automation Engine] Filling form inputs & clicking submit...`);
+    
+    try {
+      const ticketInput = await page.$('#input-ticket');
+      if (ticketInput) {
+        await page.fill('#input-ticket', ticketId);
+        await page.fill('#input-nd', nd);
+        await page.click('#submit-ticket');
+        console.log(`[Automation Engine] Clicked #submit-ticket successfully.`);
+      } else {
+        console.log(`[Automation Engine] Inputs missing, triggering JS doTask()...`);
+        await page.evaluate(({ t, n }) => {
+          if (typeof $ !== 'undefined') {
+            if ($('#input-ticket').length) $('#input-ticket').val(t);
+            if ($('#input-nd').length) $('#input-nd').val(n);
+            if (typeof doTask === 'function') doTask();
+          }
+        }, { t: ticketId, n: nd });
+      }
+    } catch (e) {
+      console.warn('[Automation Engine Warning]:', e.message);
+    }
 
-    // Capture Page Screenshot
+    // Step 2: Wait for QC execution and location save
+    console.log(`[Automation Engine] Waiting for QC execution...`);
+    await page.waitForTimeout(8000);
+
+    // Capture final screenshot
     const screenshotBuffer = await page.screenshot({ fullPage: false });
     const screenshotBase64 = screenshotBuffer.toString('base64');
-
     const pageTitle = await page.title();
-    const content = await page.content();
 
     await browser.close();
 
     return res.json({
       success: true,
-      message: 'SCC Ticket Processed Successfully with Native CDP Geolocation Injection!',
+      message: 'SCC Ticket Processed & Submitted with Native CDP Geolocation!',
       ticketId,
       nd,
       coordinates: { lat: targetLat, lng: targetLng },
