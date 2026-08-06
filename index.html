@@ -275,7 +275,14 @@
             </svg>
             <p>Silakan isi data di sebelah kiri<br>lalu klik <b>Submit Check</b>.</p>
         </div>
-        <iframe id="sccFrame" src="" allow="geolocation" style="display: none;"></iframe>
+
+        <div id="frameContainer" style="display: none; width: 100%; height: 100%; position: relative;">
+            <div style="position: absolute; top: 12px; right: 12px; z-index: 100; background: var(--panel); border: 1px solid var(--border); padding: 8px 14px; border-radius: 6px; display: flex; gap: 8px; align-items: center;">
+                <span style="font-size: 12px; color: var(--muted);">Buka di Tab Baru jika blank:</span>
+                <a id="openTabBtn" href="#" target="_blank" style="color: var(--accent); font-size: 12px; text-decoration: none; font-weight: 600;">Open Direct SCC ↗</a>
+            </div>
+            <iframe id="sccFrame" src="" allow="geolocation" style="width: 100%; height: 100%; border: none;"></iframe>
+        </div>
     </main>
 
     <script>
@@ -387,6 +394,9 @@
             };
         }
 
+        const frameContainer = document.getElementById('frameContainer');
+        const openTabBtn = document.getElementById('openTabBtn');
+
         form.addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -410,8 +420,9 @@
             const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
 
             placeholder.style.display = 'none';
-            iframe.style.display = 'block';
+            frameContainer.style.display = 'block';
             iframe.src = targetUrl;
+            openTabBtn.href = targetUrl;
         });
     </script>
 </body>
