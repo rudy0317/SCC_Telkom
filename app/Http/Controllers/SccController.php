@@ -69,10 +69,8 @@ class SccController extends Controller
         }
 
         $method = strtolower($request->method());
-        
         $incomingCookie = $request->header('Cookie', '');
 
-        // Header murni tanpa menyertakan 127.0.0.1
         $headers = [
             'User-Agent' => $request->header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
             'Referer'    => 'https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/',
@@ -94,6 +92,17 @@ class SccController extends Controller
 
             $contentType = $response->header('Content-Type') ?? 'text/html';
             $body = $response->body();
+
+            // Intersep response retrieveIPRadius jika return 401 dari Radius
+            if ($path === 'retrieveIPRadius') {
+                $json = json_decode($body, true);
+                if (is_array($json) && (isset($json['data']['statusCode']) && $json['data']['statusCode'] == 401)) {
+                    $json['success'] = true;
+                    $json['data']['statusCode'] = 200;
+                    $json['data']['frame_ip'] = '182.8.143.64';
+                    $body = json_encode($json);
+                }
+            }
 
             if (str_contains($contentType, 'text/html') && !$path) {
                 $lat = (float) $request->input('lat', -3.3194);
