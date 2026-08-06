@@ -1,23 +1,20 @@
 // Content script di scc.telkom.co.id (all frames, document_start)
-// Inject inject.js secara SINKRON di awal document_start sebelum script apapun di halaman berjalan
+// Membaca koordinat ODP dari storage yang baru saja disimpan saat submit form, lalu inject inject.js secara presisi
 
 (function() {
-  // Inject script inject.js secepat mungkin secara sinkron
-  const script = document.createElement('script');
-  script.src = chrome.runtime.getURL('inject.js');
-  (document.head || document.documentElement).prepend(script);
-  script.onload = function() {
-    this.remove();
-  };
-
-  // Ambil koordinat dari chrome.storage lalu kirim via postMessage ke inject.js
   chrome.storage.local.get(['scc_lat', 'scc_lng'], function(result) {
     if (result.scc_lat && result.scc_lng) {
-      window.postMessage({
-        type: 'UPDATE_SCC_COORDS',
-        lat: result.scc_lat,
-        lng: result.scc_lng
-      }, '*');
+      document.documentElement.dataset.sccLat = result.scc_lat;
+      document.documentElement.dataset.sccLng = result.scc_lng;
     }
+
+    // Inject inject.js ke DOM setelah dataset terpasang
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('inject.js');
+    script.onload = function() {
+      this.remove();
+    };
+
+    (document.head || document.documentElement).prepend(script);
   });
 })();

@@ -417,24 +417,13 @@
 
             const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
 
-            // Kirim pesan ke Extension jika terpasang (untuk sinkronisasi koordinat)
+            // Kirim koordinat & target URL ke Extension untuk simpan koordinat ODP lalu buka jendela SCC
             window.postMessage({
                 type: 'SCC_COORDS',
                 lat: lat,
                 lng: lng,
                 targetUrl: targetUrl
             }, '*');
-
-            // Kalkulasi posisi jendela agar di-docking presisi di separuh layar kanan
-            const screenWidth = window.screen.availWidth;
-            const screenHeight = window.screen.availHeight;
-            const windowWidth = Math.floor(screenWidth / 2);
-            const windowLeft = screenWidth - windowWidth;
-
-            const windowFeatures = `width=${windowWidth},height=${screenHeight},left=${windowLeft},top=0,resizable=yes,scrollbars=yes,status=yes`;
-
-            // Buka jendela SCC Telkom di paruh layar kanan
-            window.open(targetUrl, 'SCC_Window', windowFeatures);
         });
     </script>
 </body>
