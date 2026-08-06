@@ -71,14 +71,12 @@ class SccController extends Controller
         $method = strtolower($request->method());
         
         $incomingCookie = $request->header('Cookie', '');
-        $clientIp = $request->ip();
 
+        // Header murni tanpa menyertakan 127.0.0.1
         $headers = [
-            'User-Agent'      => $request->header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
-            'Referer'         => 'https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/',
-            'Origin'          => 'https://scc.telkom.co.id',
-            'X-Forwarded-For' => $clientIp,
-            'Client-IP'       => $clientIp,
+            'User-Agent' => $request->header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
+            'Referer'    => 'https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/',
+            'Origin'     => 'https://scc.telkom.co.id',
         ];
 
         if ($incomingCookie) {
