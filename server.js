@@ -49,7 +49,7 @@ app.get('/api/odp/search', (req, res) => {
   return res.json(results);
 });
 
-// 2. Playwright Realtime SSE Streaming Endpoint with Full QC Auto-Drive
+// 2. Playwright Realtime SSE Streaming Endpoint with Fault-Tolerant Loop
 app.post('/api/scc/process-stream', async (req, res) => {
   const { ticketId, nd, lat, lng } = req.body;
 
@@ -66,14 +66,15 @@ app.post('/api/scc/process-stream', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
 
   const sendEvent = (event, data) => {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    try {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    } catch (e) {}
   };
 
   sendEvent('status', { message: '🚀 Launching Chromium Native CDP Browser...', color: '#38bdf8' });
 
   let browser;
   let streamInterval;
-  let autoDriveInterval;
 
   try {
     browser = await chromium.launch({
@@ -110,9 +111,7 @@ app.post('/api/scc/process-stream', async (req, res) => {
           const imgBuffer = await page.screenshot({ type: 'jpeg', quality: 50 });
           sendEvent('frame', { image: `data:image/jpeg;base64,${imgBuffer.toString('base64')}` });
         }
-      } catch (e) {
-        // Ignored during page navigation
-      }
+      } catch (e) {}
     }, 300);
 
     const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
@@ -134,38 +133,26 @@ app.post('/api/scc/process-stream', async (req, res) => {
 
     sendEvent('status', { message: '📍 Injecting ODP GPS & Auto-driving QC steps until completion...', color: '#22c55e' });
 
-    // Auto-drive interval: Auto clicks Continue / Lanjut buttons & injects GPS continuously
-    let maxWaitCycles = 60; // Up to 60 seconds total execution
-    let currentCycle = 0;
-
-    await new Promise((resolve) => {
-      autoDriveInterval = setInterval(async () => {
-        currentCycle++;
-        try {
-          if (page && !page.isClosed()) {
-            // Auto click any Continue / Lanjut / Close buttons if enabled
-            await page.evaluate(() => {
-              const buttons = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
-              buttons.forEach(btn => {
-                const text = (btn.innerText || btn.value || '').toLowerCase();
-                if ((text.includes('continue') || text.includes('lanjut') || text.includes('close ticket') || text.includes('ok')) && !btn.disabled && !btn.classList.contains('hide')) {
-                  btn.click();
-                }
-              });
+    // Safe sequential async loop instead of unhandled setInterval inside Promise
+    for (let i = 0; i < 45; i++) {
+      await page.waitForTimeout(1000);
+      try {
+        if (page && !page.isClosed()) {
+          await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
+            buttons.forEach(btn => {
+              const text = (btn.innerText || btn.value || '').toLowerCase();
+              if ((text.includes('continue') || text.includes('lanjut') || text.includes('close ticket') || text.includes('ok')) && !btn.disabled && !btn.classList.contains('hide')) {
+                btn.click();
+              }
             });
-          }
-        } catch (e) {}
-
-        if (currentCycle >= maxWaitCycles) {
-          clearInterval(autoDriveInterval);
-          resolve();
+          });
         }
-      }, 1000);
-    });
+      } catch (e) {}
+    }
 
     sendEvent('status', { message: '✅ QC & Geolocation Injection Full Cycle Finished!', color: '#22c55e' });
 
-    // Send final high quality screenshot
     const finalBuffer = await page.screenshot({ type: 'png' });
     sendEvent('frame', { image: `data:image/png;base64,${finalBuffer.toString('base64')}` });
     sendEvent('done', { success: true });
@@ -177,7 +164,6 @@ app.post('/api/scc/process-stream', async (req, res) => {
   } catch (error) {
     console.error('[Automation Engine Error]:', error.message);
     if (streamInterval) clearInterval(streamInterval);
-    if (autoDriveInterval) clearInterval(autoDriveInterval);
     if (browser) await browser.close();
 
     sendEvent('status', { message: `❌ Error: ${error.message}`, color: '#ef4444' });
