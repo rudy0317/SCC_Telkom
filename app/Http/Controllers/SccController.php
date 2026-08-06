@@ -107,7 +107,7 @@ class SccController extends Controller
                 }
             }
 
-            // 2. Intersep response saveWho untuk memaksa passed_ip = true (Bypass jaringan pelanggan)
+            // 2. Intersep response saveWho untuk memaksa passed_ip = true
             if ($path === 'saveWho') {
                 $json = json_decode($body, true);
                 if (is_array($json) && isset($json['data'])) {
@@ -127,26 +127,51 @@ class SccController extends Controller
                         var fakeLat = {$lat};
                         var fakeLng = {$lng};
 
-                        if (navigator.geolocation) {
-                            navigator.geolocation.getCurrentPosition = function(success) {
-                                if (typeof success === 'function') {
-                                    success({
-                                        coords: { latitude: fakeLat, longitude: fakeLng, accuracy: 3, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
-                                        timestamp: Date.now()
+                        // Override Permissions API query -> return 'granted'
+                        if (navigator.permissions && navigator.permissions.query) {
+                            var origQuery = navigator.permissions.query;
+                            navigator.permissions.query = function(param) {
+                                if (param && (param.name === 'geolocation' || param === 'geolocation')) {
+                                    return Promise.resolve({
+                                        state: 'granted',
+                                        onchange: null,
+                                        addEventListener: function() {},
+                                        removeEventListener: function() {},
+                                        dispatchEvent: function() { return true; }
                                     });
                                 }
+                                return origQuery.apply(this, arguments);
                             };
-                            navigator.geolocation.watchPosition = function(success) {
+                        }
+
+                        // Override Geolocation API
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition = function(success, error, options) {
+                                console.log('[Laravel Proxy] getCurrentPosition intercepted -> returning fake coords');
                                 if (typeof success === 'function') {
-                                    success({
-                                        coords: { latitude: fakeLat, longitude: fakeLng, accuracy: 3, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
-                                        timestamp: Date.now()
-                                    });
+                                    setTimeout(function() {
+                                        success({
+                                            coords: { latitude: fakeLat, longitude: fakeLng, accuracy: 3, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
+                                            timestamp: Date.now()
+                                        });
+                                    }, 10);
+                                }
+                            };
+                            navigator.geolocation.watchPosition = function(success, error, options) {
+                                console.log('[Laravel Proxy] watchPosition intercepted -> returning fake coords');
+                                if (typeof success === 'function') {
+                                    setTimeout(function() {
+                                        success({
+                                            coords: { latitude: fakeLat, longitude: fakeLng, accuracy: 3, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
+                                            timestamp: Date.now()
+                                        });
+                                    }, 10);
                                 }
                                 return 1;
                             };
                         }
 
+                        // Rewrite relative AJAX calls to pass through Laravel Proxy
                         var origOpen = XMLHttpRequest.prototype.open;
                         XMLHttpRequest.prototype.open = function(method, url, async, user, pass) {
                             if (typeof url === 'string' && url.includes('scc.telkom.co.id')) {
@@ -157,6 +182,22 @@ class SccController extends Controller
                             }
                             return origOpen.call(this, method, url, async, user, pass);
                         };
+
+                        // Auto-hide location warning modal overlay
+                        document.addEventListener('DOMContentLoaded', function() {
+                            var interval = setInterval(function() {
+                                var elements = document.querySelectorAll('div, modal, section, p, span');
+                                elements.forEach(function(el) {
+                                    if (el.innerText && (el.innerText.includes('Menunggu akses lokasi') || el.innerText.includes('Segera aktifkan GPS'))) {
+                                        var modal = el.closest('.modal') || el.closest('div[style*="z-index"]') || el.parentElement;
+                                        if (modal) {
+                                            modal.style.display = 'none';
+                                        }
+                                    }
+                                });
+                            }, 300);
+                            setTimeout(function() { clearInterval(interval); }, 15000);
+                        });
                     })();
                 </script>
                 ";
