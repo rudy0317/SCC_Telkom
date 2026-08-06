@@ -150,6 +150,12 @@
             }
         }
 
+        /* Sembunyikan sistem sebelum auth */
+        body.locked aside,
+        body.locked main {
+            display: none !important;
+        }
+
         /* Modal Lock Screen */
         .lock-overlay {
             position: fixed;
@@ -157,8 +163,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(8px);
+            background: var(--bg);
             z-index: 9999;
             display: flex;
             align-items: center;
@@ -179,7 +184,8 @@
         .lock-box h3 {
             margin-bottom: 8px;
             color: var(--text);
-            font-size: 18px;
+            font-size: 16px;
+            letter-spacing: 1px;
         }
 
         .lock-box p {
@@ -219,12 +225,12 @@
         }
     </style>
 </head>
-<body>
+<body class="locked">
 
     <!-- Lock Screen Modal -->
     <div class="lock-overlay" id="lockOverlay">
         <div class="lock-box">
-            <h3>🔒 AUTHENTICATION REQUIRED</h3>
+            <h3>AUTHENTICATION REQUIRED</h3>
             <p>Masukkan Access Key untuk membuka SCC Tools</p>
             <input type="password" id="accessKeyInput" placeholder="••••••••" autocomplete="off">
             <button type="button" id="unlockBtn">Buka Akses</button>
@@ -244,14 +250,9 @@
             </div>
 
             <div class="input-group">
-                <label for="odpSearch">Cari Nama ODP (Auto-fill)</label>
-                <input type="text" id="odpSearch" list="odpList" placeholder="Ketik nama ODP..." autocomplete="off">
+                <label for="odpSearch">Cari Nama / Koordinat ODP (Auto-fill)</label>
+                <input type="text" id="odpSearch" list="odpList" placeholder="Ketik nama ODP..." autocomplete="off" required>
                 <datalist id="odpList"></datalist>
-            </div>
-
-            <div class="input-group">
-                <label for="koordinat">Koordinat ODP</label>
-                <input type="text" id="koordinat" placeholder="Contoh: -6.200000, 106.816666" required autocomplete="off">
             </div>
 
             <div class="input-group">
@@ -294,8 +295,8 @@
         let odpMap = new Map();
 
         // Password Validation Logic (Hash Target: "RUDY111" -> sha256)
-        // SHA-256 for "RUDY111": a8ca718b5b6329bb6d6ce3ddbeee9bd711311ffbcebf9d7a22eb845feec8ee6d
-        const TARGET_HASH = "a8ca718b5b6329bb6d6ce3ddbeee9bd711311ffbcebf9d7a22eb845feec8ee6d";
+        // SHA-256 for "RUDY111": 60445001b59f92e1ab5aab79c9182767ec9395c9ea1b289a61340bba637dc117
+        const TARGET_HASH = "60445001b59f92e1ab5aab79c9182767ec9395c9ea1b289a61340bba637dc117";
 
         async function sha256(str) {
             const buffer = new TextEncoder().encode(str);
@@ -308,6 +309,7 @@
             const hash = await sha256(key);
             if (hash === TARGET_HASH) {
                 localStorage.setItem('scc_auth', key);
+                document.body.classList.remove('locked');
                 lockOverlay.style.display = 'none';
                 loadODPData();
             } else {
@@ -329,11 +331,13 @@
             if (savedKey) {
                 const hash = await sha256(savedKey);
                 if (hash === TARGET_HASH) {
+                    document.body.classList.remove('locked');
                     lockOverlay.style.display = 'none';
                     loadODPData();
                     return;
                 }
             }
+            document.body.classList.add('locked');
             lockOverlay.style.display = 'flex';
         })();
 
@@ -352,16 +356,7 @@
                     });
                     odpList.appendChild(fragment);
                 })
-                .catch(err => console.log('ODP Data load skipped/failed', err));
         }
-
-        // Auto-fill koordinat pas ODP dipilih
-        odpSearch.addEventListener('input', function() {
-            const val = this.value.trim();
-            if (odpMap.has(val)) {
-                koordinatInput.value = odpMap.get(val);
-            }
-        });
 
         // Silent Geolocation Override
         if (navigator.geolocation) {
@@ -394,8 +389,15 @@
             e.preventDefault();
 
             const ticketId = ticketInput.value.trim();
-            const rawCoords = koordinatInput.value.trim();
+            const rawOdpVal = odpSearch.value.trim();
             const nd = ndInput.value.trim();
+
+            let rawCoords = "";
+            if (odpMap.has(rawOdpVal)) {
+                rawCoords = odpMap.get(rawOdpVal);
+            } else {
+                rawCoords = rawOdpVal;
+            }
 
             const parts = rawCoords.split(',').map(s => s.trim());
             if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
