@@ -49,7 +49,7 @@ app.get('/api/odp/search', (req, res) => {
   return res.json(results);
 });
 
-// 2. Playwright Realtime SSE Streaming Endpoint
+// 2. Playwright Realtime SSE Streaming Endpoint with Full QC Auto-Drive
 app.post('/api/scc/process-stream', async (req, res) => {
   const { ticketId, nd, lat, lng } = req.body;
 
@@ -73,6 +73,7 @@ app.post('/api/scc/process-stream', async (req, res) => {
 
   let browser;
   let streamInterval;
+  let autoDriveInterval;
 
   try {
     browser = await chromium.launch({
@@ -131,23 +132,52 @@ app.post('/api/scc/process-stream', async (req, res) => {
       }
     }, { t: ticketId, n: nd });
 
-    sendEvent('status', { message: '📍 Native CDP Geolocation Injected & Running QC...', color: '#22c55e' });
-    await page.waitForTimeout(8000);
+    sendEvent('status', { message: '📍 Injecting ODP GPS & Auto-driving QC steps until completion...', color: '#22c55e' });
 
-    sendEvent('status', { message: '✅ QC & Geolocation Process Completed Successfully!', color: '#22c55e' });
+    // Auto-drive interval: Auto clicks Continue / Lanjut buttons & injects GPS continuously
+    let maxWaitCycles = 60; // Up to 60 seconds total execution
+    let currentCycle = 0;
+
+    await new Promise((resolve) => {
+      autoDriveInterval = setInterval(async () => {
+        currentCycle++;
+        try {
+          if (page && !page.isClosed()) {
+            // Auto click any Continue / Lanjut / Close buttons if enabled
+            await page.evaluate(() => {
+              const buttons = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
+              buttons.forEach(btn => {
+                const text = (btn.innerText || btn.value || '').toLowerCase();
+                if ((text.includes('continue') || text.includes('lanjut') || text.includes('close ticket') || text.includes('ok')) && !btn.disabled && !btn.classList.contains('hide')) {
+                  btn.click();
+                }
+              });
+            });
+          }
+        } catch (e) {}
+
+        if (currentCycle >= maxWaitCycles) {
+          clearInterval(autoDriveInterval);
+          resolve();
+        }
+      }, 1000);
+    });
+
+    sendEvent('status', { message: '✅ QC & Geolocation Injection Full Cycle Finished!', color: '#22c55e' });
 
     // Send final high quality screenshot
     const finalBuffer = await page.screenshot({ type: 'png' });
     sendEvent('frame', { image: `data:image/png;base64,${finalBuffer.toString('base64')}` });
     sendEvent('done', { success: true });
 
-    clearInterval(streamInterval);
+    if (streamInterval) clearInterval(streamInterval);
     await browser.close();
     res.end();
 
   } catch (error) {
     console.error('[Automation Engine Error]:', error.message);
     if (streamInterval) clearInterval(streamInterval);
+    if (autoDriveInterval) clearInterval(autoDriveInterval);
     if (browser) await browser.close();
 
     sendEvent('status', { message: `❌ Error: ${error.message}`, color: '#ef4444' });
