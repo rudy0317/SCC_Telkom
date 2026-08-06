@@ -4,16 +4,19 @@
     "priority": 1,
     "action": {
       "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://scc.telkom.co.id/" },
+        { "header": "Origin", "operation": "set", "value": "https://scc.telkom.co.id" }
+      ],
       "responseHeaders": [
         { "header": "X-Frame-Options", "operation": "remove" },
         { "header": "Content-Security-Policy", "operation": "remove" },
-        { "header": "x-frame-options", "operation": "remove" },
-        { "header": "set-cookie", "operation": "remove" }
+        { "header": "x-frame-options", "operation": "remove" }
       ]
     },
     "condition": {
       "urlFilter": "scc.telkom.co.id",
-      "resourceTypes": ["sub_frame", "main_frame"]
+      "resourceTypes": ["sub_frame", "main_frame", "xmlhttprequest"]
     }
   }
 ]
