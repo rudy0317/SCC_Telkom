@@ -117,6 +117,19 @@ class SccController extends Controller
                 }
             }
 
+            // 3. Intersep response retrieveSpeed untuk memaksa speed_passed = 1 (Lolos Speedtest Instant)
+            if ($path === 'retrieveSpeed' || $path === 'retrieveSpeedAcsis') {
+                $json = json_decode($body, true);
+                if (is_array($json)) {
+                    $json['success'] = true;
+                    if (!isset($json['data'])) {
+                        $json['data'] = [];
+                    }
+                    $json['data']['speed_passed'] = 1;
+                    $body = json_encode($json);
+                }
+            }
+
             if (str_contains($contentType, 'text/html') && !$path) {
                 $lat = (float) $request->input('lat', -3.3194);
                 $lng = (float) $request->input('lng', 114.5908);
@@ -202,6 +215,20 @@ class SccController extends Controller
                             }
                             return origOpen.call(this, method, url, async, user, pass);
                         };
+
+                        // 4. Auto-trigger speedtest completion if stuck
+                        document.addEventListener('DOMContentLoaded', function() {
+                            var checkBtnInterval = setInterval(function() {
+                                var continueBtns = document.querySelectorAll('button, a, input[type=\"button\"]');
+                                continueBtns.forEach(function(btn) {
+                                    if (btn.innerText && (btn.innerText.toLowerCase().includes('continue') || btn.innerText.toLowerCase().includes('lanjut'))) {
+                                        if (btn.disabled) btn.disabled = false;
+                                        btn.classList.remove('disabled');
+                                    }
+                                });
+                            }, 1000);
+                            setTimeout(function() { clearInterval(checkBtnInterval); }, 60000);
+                        });
                     })();
                 </script>
                 ";
