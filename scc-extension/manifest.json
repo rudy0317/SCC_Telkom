@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SCC Tools Helper",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Auto-inject GPS koordinat ODP ke SCC Telkom. Untuk internal use.",
   "permissions": [
     "storage",
@@ -11,14 +11,14 @@
   ],
   "host_permissions": [
     "https://scc.telkom.co.id/*",
-    "https://rudy0317.github.io/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://rudy0317.github.io/*"],
+      "matches": ["<all_urls>"],
       "js": ["content_github.js"],
       "run_at": "document_end"
     },
@@ -43,3 +43,4 @@
     }]
   }
 }
+

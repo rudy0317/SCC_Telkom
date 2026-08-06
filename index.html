@@ -415,9 +415,18 @@
                 lng = parseFloat(parts[1]);
             }
 
+            window.fakeLat = lat;
+            window.fakeLng = lng;
+
             const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
 
-            // Kirim koordinat & target URL ke Extension untuk simpan koordinat ODP lalu buka jendela SCC
+            // Tampilkan frame container & update iframe
+            document.getElementById('frameContainer').style.display = 'block';
+            placeholder.style.display = 'none';
+            document.getElementById('openTabBtn').href = targetUrl;
+            iframe.src = targetUrl;
+
+            // Kirim koordinat & target URL ke Extension untuk simpan koordinat & buka popup window
             window.postMessage({
                 type: 'SCC_COORDS',
                 lat: lat,

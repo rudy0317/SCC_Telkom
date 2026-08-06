@@ -1,17 +1,31 @@
 (function() {
-  var lat = parseFloat(document.documentElement.dataset.sccLat);
-  var lng = parseFloat(document.documentElement.dataset.sccLng);
+  function getCoords() {
+    var lat = parseFloat(document.documentElement.dataset.sccLat);
+    var lng = parseFloat(document.documentElement.dataset.sccLng);
 
-  if (isNaN(lat) || isNaN(lng)) {
-    lat = -3.3194;
-    lng = 114.5908;
+    // Jika dataset belum siap, coba baca dari cookie HTTP
+    if (isNaN(lat) || isNaN(lng)) {
+      var matchLat = document.cookie.match(/(?:^|;\s*)scc_lat=([^;]+)/);
+      var matchLng = document.cookie.match(/(?:^|;\s*)scc_lng=([^;]+)/);
+      if (matchLat && matchLng) {
+        lat = parseFloat(matchLat[1]);
+        lng = parseFloat(matchLng[1]);
+      }
+    }
+
+    if (isNaN(lat) || isNaN(lng)) {
+      lat = -3.3194;
+      lng = 114.5908;
+    }
+    return { lat: lat, lng: lng };
   }
 
   function getFakePos() {
+    var c = getCoords();
     return {
       coords: {
-        latitude: lat,
-        longitude: lng,
+        latitude: c.lat,
+        longitude: c.lng,
         accuracy: 3,
         altitude: null,
         altitudeAccuracy: null,
@@ -39,22 +53,25 @@
     };
   }
 
-  // 2. Override Geolocation API secara presisi dengan koordinat ODP yang disubmit
+  // 2. Override Geolocation API
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition = function(success, error, opts) {
-      console.log('[SCC Tools] getCurrentPosition dipanggil -> Lokasi ODP ter-inject:', lat, lng);
+      var pos = getFakePos();
+      console.log('[SCC Tools] getCurrentPosition dipanggil -> Lokasi ODP:', pos.coords.latitude, pos.coords.longitude);
       if (typeof success === 'function') {
-        setTimeout(function() { success(getFakePos()); }, 10);
+        setTimeout(function() { success(pos); }, 10);
       }
     };
     navigator.geolocation.watchPosition = function(success, error, opts) {
-      console.log('[SCC Tools] watchPosition dipanggil -> Lokasi ODP ter-inject:', lat, lng);
+      var pos = getFakePos();
+      console.log('[SCC Tools] watchPosition dipanggil -> Lokasi ODP:', pos.coords.latitude, pos.coords.longitude);
       if (typeof success === 'function') {
-        setTimeout(function() { success(getFakePos()); }, 10);
+        setTimeout(function() { success(pos); }, 10);
       }
       return 1;
     };
   }
 
-  console.log('[SCC Tools] Geolocation API injected secara presisi untuk ODP:', lat, lng);
+  console.log('[SCC Tools] Silent Geolocation override active.');
 })();
+
