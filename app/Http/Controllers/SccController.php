@@ -189,7 +189,7 @@ class SccController extends Controller
                                 var elements = document.querySelectorAll('div, modal, section, p, span');
                                 elements.forEach(function(el) {
                                     if (el.innerText && (el.innerText.includes('Menunggu akses lokasi') || el.innerText.includes('Segera aktifkan GPS'))) {
-                                        var modal = el.closest('.modal') || el.closest('div[style*="z-index"]') || el.parentElement;
+                                        var modal = el.closest('.modal') || el.parentElement;
                                         if (modal) {
                                             modal.style.display = 'none';
                                         }
