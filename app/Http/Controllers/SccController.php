@@ -127,51 +127,71 @@ class SccController extends Controller
                         var fakeLat = {$lat};
                         var fakeLng = {$lng};
 
-                        // Override Permissions API query -> return 'granted'
-                        if (navigator.permissions && navigator.permissions.query) {
-                            var origQuery = navigator.permissions.query;
-                            navigator.permissions.query = function(param) {
-                                if (param && (param.name === 'geolocation' || param === 'geolocation')) {
-                                    return Promise.resolve({
-                                        state: 'granted',
-                                        onchange: null,
-                                        addEventListener: function() {},
-                                        removeEventListener: function() {},
-                                        dispatchEvent: function() { return true; }
-                                    });
-                                }
-                                return origQuery.apply(this, arguments);
+                        function createGeolocationPosition() {
+                            return {
+                                coords: {
+                                    latitude: fakeLat,
+                                    longitude: fakeLng,
+                                    accuracy: 5.0,
+                                    altitude: 15.0,
+                                    altitudeAccuracy: 2.0,
+                                    heading: null,
+                                    speed: 0.0
+                                },
+                                timestamp: Date.now()
                             };
                         }
 
-                        // Override Geolocation API
+                        // 1. Override Permissions API
+                        if (navigator.permissions && navigator.permissions.query) {
+                            navigator.permissions.query = function(param) {
+                                return Promise.resolve({
+                                    state: 'granted',
+                                    onchange: null,
+                                    addEventListener: function() {},
+                                    removeEventListener: function() {},
+                                    dispatchEvent: function() { return true; }
+                                });
+                            };
+                        }
+
+                        // 2. Override Geolocation API (Immediate & Continuous Stream)
                         if (navigator.geolocation) {
                             navigator.geolocation.getCurrentPosition = function(success, error, options) {
-                                console.log('[Laravel Proxy] getCurrentPosition intercepted -> returning fake coords');
+                                console.log('[Laravel Proxy] getCurrentPosition triggered -> Injecting ODP GPS:', fakeLat, fakeLng);
                                 if (typeof success === 'function') {
                                     setTimeout(function() {
-                                        success({
-                                            coords: { latitude: fakeLat, longitude: fakeLng, accuracy: 3, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
-                                            timestamp: Date.now()
-                                        });
+                                        success(createGeolocationPosition());
                                     }, 10);
                                 }
                             };
+
+                            var watchIdCounter = 1;
+                            var activeWatchers = {};
+
                             navigator.geolocation.watchPosition = function(success, error, options) {
-                                console.log('[Laravel Proxy] watchPosition intercepted -> returning fake coords');
-                                if (typeof success === 'function') {
-                                    setTimeout(function() {
-                                        success({
-                                            coords: { latitude: fakeLat, longitude: fakeLng, accuracy: 3, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
-                                            timestamp: Date.now()
-                                        });
-                                    }, 10);
+                                var id = watchIdCounter++;
+                                console.log('[Laravel Proxy] watchPosition started (ID: ' + id + ') -> Streaming ODP GPS:', fakeLat, fakeLng);
+                                
+                                function notify() {
+                                    if (typeof success === 'function') {
+                                        success(createGeolocationPosition());
+                                    }
                                 }
-                                return 1;
+                                notify();
+                                activeWatchers[id] = setInterval(notify, 500);
+                                return id;
+                            };
+
+                            navigator.geolocation.clearWatch = function(id) {
+                                if (activeWatchers[id]) {
+                                    clearInterval(activeWatchers[id]);
+                                    delete activeWatchers[id];
+                                }
                             };
                         }
 
-                        // Rewrite relative AJAX calls to pass through Laravel Proxy
+                        // 3. Rewrite relative AJAX calls
                         var origOpen = XMLHttpRequest.prototype.open;
                         XMLHttpRequest.prototype.open = function(method, url, async, user, pass) {
                             if (typeof url === 'string' && url.includes('scc.telkom.co.id')) {
@@ -183,21 +203,10 @@ class SccController extends Controller
                             return origOpen.call(this, method, url, async, user, pass);
                         };
 
-                        // Auto-hide location warning modal overlay
-                        document.addEventListener('DOMContentLoaded', function() {
-                            var interval = setInterval(function() {
-                                var elements = document.querySelectorAll('div, modal, section, p, span');
-                                elements.forEach(function(el) {
-                                    if (el.innerText && (el.innerText.includes('Menunggu akses lokasi') || el.innerText.includes('Segera aktifkan GPS'))) {
-                                        var modal = el.closest('.modal') || el.parentElement;
-                                        if (modal) {
-                                            modal.style.display = 'none';
-                                        }
-                                    }
-                                });
-                            }, 300);
-                            setTimeout(function() { clearInterval(interval); }, 15000);
-                        });
+                        // 4. Force hide GPS warning dialog overlay
+                        var style = document.createElement('style');
+                        style.innerHTML = '.modal, [id*=\"location\"], [id*=\"gps\"], [class*=\"modal\"] { display: none !important; }';
+                        (document.head || document.documentElement).appendChild(style);
                     })();
                 </script>
                 ";

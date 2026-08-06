@@ -124,7 +124,7 @@
         <div class="placeholder" id="placeholder">
             <p>Silakan isi form di sebelah kiri<br>lalu klik <b>Submit Check & Inject GPS</b>.</p>
         </div>
-        <iframe id="sccFrame" src="" style="display: none;"></iframe>
+        <iframe id="sccFrame" src="" allow="geolocation *; geolocation" style="display: none;"></iframe>
     </main>
 
     <script>
