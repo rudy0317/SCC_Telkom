@@ -268,6 +268,13 @@ app.post('/api/scc/process-stream', async (req, res) => {
             const state = window.__automation;
             let actions = [];
 
+            // AUTO-SKIP: Speed Test ONT/Acsis - langsung isi dan hide
+            if ($('#loader-speed-acsis').is(':visible')) {
+              $('#loader-speed-acsis').addClass('hide');
+              $('#confirm-speed-acsis').val('32080');
+              actions.push('Skipped Speed Test ONT');
+            }
+
             // Report current visible step
             let currentStep = '';
             let ooklaVisible = false;
@@ -275,7 +282,6 @@ app.post('/api/scc/process-stream', async (req, res) => {
             else if ($('#show-check').is(':visible')) currentStep = 'Checking...';
             else if ($('#ookla-test').is(':visible')) {
               ooklaVisible = true;
-              // Check if speedtest completed naturally (rest was set by ooklaListener)
               if (typeof rest !== 'undefined' && rest !== null && rest.download) {
                 currentStep = 'Speedtest Complete ✅ (Download: ' + rest.download + ')';
               } else {
