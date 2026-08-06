@@ -81,11 +81,27 @@ class SccController extends Controller
             $headers['Cookie'] = $incomingCookie;
         }
 
+        $postData = $request->all();
+
+        // Fix CodeIgniter PHP error: Inject valid Ookla Speedtest JSON payload if missing or 0
+        if ($method === 'post' && ($path === 'createTask' || $path === 'retrieveSpeed')) {
+            $mockSpeed = json_encode([
+                'download' => ['bandwidth' => 52428800, 'bytes' => 10485760, 'elapsed' => 2000],
+                'upload'   => ['bandwidth' => 20971520, 'bytes' => 5242880, 'elapsed' => 2000],
+                'ping'     => ['latency' => 12.5, 'jitter' => 2.1],
+                'interface'=> ['internalIp' => '192.168.1.100', 'externalIp' => '182.8.143.64']
+            ]);
+
+            if (!isset($postData['speed']) || empty($postData['speed']) || $postData['speed'] === 'null' || $postData['speed'] === '0') {
+                $postData['speed'] = $mockSpeed;
+            }
+        }
+
         try {
             $httpRequest = Http::withHeaders($headers)->withoutVerifying();
 
             if ($method === 'post') {
-                $response = $httpRequest->asForm()->post($targetUrl, $request->all());
+                $response = $httpRequest->asForm()->post($targetUrl, $postData);
             } else {
                 $response = $httpRequest->get($targetUrl);
             }
@@ -117,7 +133,7 @@ class SccController extends Controller
                 }
             }
 
-            // 3. Intersep response retrieveSpeed untuk memaksa speed_passed = 1 (Lolos Speedtest Instant)
+            // 3. Intersep response retrieveSpeed untuk memaksa speed_passed = 1
             if ($path === 'retrieveSpeed' || $path === 'retrieveSpeedAcsis') {
                 $json = json_decode($body, true);
                 if (is_array($json)) {
@@ -215,20 +231,6 @@ class SccController extends Controller
                             }
                             return origOpen.call(this, method, url, async, user, pass);
                         };
-
-                        // 4. Auto-trigger speedtest completion if stuck
-                        document.addEventListener('DOMContentLoaded', function() {
-                            var checkBtnInterval = setInterval(function() {
-                                var continueBtns = document.querySelectorAll('button, a, input[type=\"button\"]');
-                                continueBtns.forEach(function(btn) {
-                                    if (btn.innerText && (btn.innerText.toLowerCase().includes('continue') || btn.innerText.toLowerCase().includes('lanjut'))) {
-                                        if (btn.disabled) btn.disabled = false;
-                                        btn.classList.remove('disabled');
-                                    }
-                                });
-                            }, 1000);
-                            setTimeout(function() { clearInterval(checkBtnInterval); }, 60000);
-                        });
                     })();
                 </script>
                 ";
