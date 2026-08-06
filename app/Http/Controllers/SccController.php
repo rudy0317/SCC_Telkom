@@ -155,7 +155,7 @@ class SccController extends Controller
                             };
                         }
 
-                        // 2. Override Geolocation API (Immediate & Continuous Stream)
+                        // 2. Override Geolocation API
                         if (navigator.geolocation) {
                             navigator.geolocation.getCurrentPosition = function(success, error, options) {
                                 console.log('[Laravel Proxy] getCurrentPosition triggered -> Injecting ODP GPS:', fakeLat, fakeLng);
@@ -202,11 +202,6 @@ class SccController extends Controller
                             }
                             return origOpen.call(this, method, url, async, user, pass);
                         };
-
-                        // 4. Force hide GPS warning dialog overlay
-                        var style = document.createElement('style');
-                        style.innerHTML = '.modal, [id*=\"location\"], [id*=\"gps\"], [class*=\"modal\"] { display: none !important; }';
-                        (document.head || document.documentElement).appendChild(style);
                     })();
                 </script>
                 ";
