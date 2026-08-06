@@ -397,6 +397,9 @@
         const frameContainer = document.getElementById('frameContainer');
         const openTabBtn = document.getElementById('openTabBtn');
 
+        // Cloudflare Worker Proxy URL
+        const WORKER_URL = 'https://scc-proxy.rudy2310010148.workers.dev';
+
         form.addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -404,7 +407,7 @@
             const rawOdpVal = odpSearch.value.trim();
             const nd = ndInput.value.trim();
 
-            let rawCoords = "";
+            let rawCoords = '';
             if (odpMap.has(rawOdpVal)) {
                 rawCoords = odpMap.get(rawOdpVal);
             } else {
@@ -412,12 +415,13 @@
             }
 
             const parts = rawCoords.split(',').map(s => s.trim());
+            let lat = 0, lng = 0;
             if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                window.fakeLat = parseFloat(parts[0]);
-                window.fakeLng = parseFloat(parts[1]);
+                lat = parseFloat(parts[0]);
+                lng = parseFloat(parts[1]);
             }
 
-            const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
+            const targetUrl = `${WORKER_URL}?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}&lat=${lat}&lng=${lng}`;
 
             placeholder.style.display = 'none';
             frameContainer.style.display = 'block';
