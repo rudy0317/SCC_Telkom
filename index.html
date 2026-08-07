@@ -8,25 +8,32 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e60000'/%3E%3Cpath d='M8 10h16v3H8zm6 3h4v10h-4z' fill='%23ffffff'/%3E%3C/svg%3E">
     <style>
         :root {
-            --bg: #0f172a;
-            --panel: #1e293b;
-            --border: #334155;
-            --text: #f8fafc;
-            --muted: #94a3b8;
-            --red: #e60000;
-            --accent: #38bdf8;
+            --bg: #F4F4F5;
+            --panel: #FFFFFF;
+            --border: #E4E4E7;
+            --border-focus: #E60000;
+            --text-primary: #18181B;
+            --text-secondary: #52525B;
+            --text-muted: #A1A1AA;
+            --telkom-red: #E60000;
+            --telkom-red-hover: #CC0000;
+            --accent-red-bg: #FEF2F2;
+            --accent-red-fg: #991B1B;
+            --accent-blue-bg: #EFF6FF;
+            --accent-blue-fg: #1E40AF;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
         body {
             background-color: var(--bg);
-            color: var(--text);
+            color: var(--text-primary);
             height: 100vh;
             display: flex;
             overflow: hidden;
@@ -34,83 +41,122 @@
 
         /* Sidebar Kiri - Form */
         aside {
-            width: 360px;
+            width: 380px;
             background: var(--panel);
             border-right: 1px solid var(--border);
-            padding: 24px;
+            padding: 32px 28px;
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            gap: 28px;
             flex-shrink: 0;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
         }
 
-        .brand {
-            font-size: 16px;
+        .brand-header {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand-title {
+            font-size: 17px;
             font-weight: 700;
-            color: var(--muted);
-            letter-spacing: 0.5px;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand-title span.telkom {
+            color: var(--telkom-red);
+        }
+
+        .brand-subtitle {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.06em;
             text-transform: uppercase;
         }
 
-        .brand span {
-            color: var(--red);
+        .badge-tag {
+            font-family: monospace;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: var(--accent-red-bg);
+            color: var(--telkom-red);
+            border: 1px solid #FECACA;
         }
 
         form {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 20px;
         }
 
         .input-group {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
         }
 
         .input-group label {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
-            color: var(--muted);
+            color: var(--text-secondary);
         }
 
         .input-group input {
-            background: var(--bg);
+            background: #FAFAFA;
             border: 1px solid var(--border);
             border-radius: 6px;
-            color: var(--text);
-            padding: 12px;
-            font-size: 14px;
+            color: var(--text-primary);
+            padding: 11px 13px;
+            font-size: 13.5px;
             outline: none;
-            transition: border-color 0.2s;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
         .input-group input:focus {
-            border-color: var(--accent);
+            border-color: var(--telkom-red);
+            background: #FFFFFF;
+            box-shadow: 0 0 0 3px rgba(230, 0, 0, 0.08);
         }
 
         button {
-            background: var(--red);
-            color: white;
+            background: var(--telkom-red);
+            color: #FFFFFF;
             border: none;
             border-radius: 6px;
-            padding: 12px;
+            padding: 12px 16px;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13.5px;
             cursor: pointer;
-            transition: opacity 0.2s;
-            margin-top: 8px;
+            transition: background-color 0.15s ease, transform 0.1s ease;
+            margin-top: 4px;
+            box-shadow: 0 2px 4px rgba(230, 0, 0, 0.15);
         }
 
         button:hover {
-            opacity: 0.9;
+            background: var(--telkom-red-hover);
+        }
+
+        button:active {
+            transform: scale(0.98);
         }
 
         /* Main Kanan - Result Frame */
         main {
             flex: 1;
             position: relative;
-            background: #000;
+            background: var(--bg);
             height: 100vh;
         }
 
@@ -127,13 +173,24 @@
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
-            color: var(--muted);
-            font-size: 14px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            max-width: 320px;
+            line-height: 1.6;
         }
 
-        .placeholder svg {
-            margin-bottom: 12px;
-            opacity: 0.3;
+        .placeholder-icon {
+            width: 44px;
+            height: 44px;
+            margin: 0 auto 16px auto;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--panel);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--telkom-red);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         }
 
         /* Responsive Layout untuk Mobile */
@@ -165,7 +222,8 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: var(--bg);
+            background: rgba(244, 244, 245, 0.95);
+            backdrop-filter: blur(4px);
             z-index: 9999;
             display: flex;
             align-items: center;
@@ -175,43 +233,49 @@
         .lock-box {
             background: var(--panel);
             border: 1px solid var(--border);
-            padding: 32px;
+            padding: 40px 36px;
             border-radius: 12px;
             width: 100%;
-            max-width: 360px;
-            text-align: center;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            max-width: 380px;
+            text-align: left;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
         }
 
         .lock-box h3 {
-            margin-bottom: 8px;
-            color: var(--text);
+            margin-bottom: 4px;
+            color: var(--text-primary);
             font-size: 16px;
-            letter-spacing: 1px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        .lock-box h3 span {
+            color: var(--telkom-red);
         }
 
         .lock-box p {
-            color: var(--muted);
+            color: var(--text-secondary);
             font-size: 13px;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            line-height: 1.5;
         }
 
         .lock-box input {
             width: 100%;
-            background: var(--bg);
+            background: #FAFAFA;
             border: 1px solid var(--border);
             border-radius: 6px;
-            color: var(--text);
-            padding: 12px;
-            font-size: 14px;
+            color: var(--text-primary);
+            padding: 11px 13px;
+            font-size: 13.5px;
+            font-family: monospace;
             outline: none;
-            text-align: center;
-            letter-spacing: 2px;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
 
         .lock-box input:focus {
-            border-color: var(--accent);
+            border-color: var(--telkom-red);
+            box-shadow: 0 0 0 3px rgba(230, 0, 0, 0.08);
         }
 
         .lock-box button {
@@ -220,9 +284,13 @@
         }
 
         .error-msg {
-            color: #ef4444;
+            background: var(--accent-red-bg);
+            color: var(--accent-red-fg);
+            border: 1px solid #FECACA;
             font-size: 12px;
-            margin-top: 8px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-top: 14px;
             display: none;
         }
     </style>
@@ -232,33 +300,38 @@
     <!-- Lock Screen Modal -->
     <div class="lock-overlay" id="lockOverlay">
         <div class="lock-box">
-            <h3>AUTHENTICATION REQUIRED</h3>
-            <p>Masukkan Access Key untuk membuka SCC Tools</p>
-            <input type="password" id="accessKeyInput" placeholder="••••••••" autocomplete="off">
+            <h3><span>TELKOM AKSES</span> AUTHENTICATION</h3>
+            <p>Masukkan Access Key teknisi untuk membuka SCC Workspace.</p>
+            <input type="password" id="accessKeyInput" placeholder="Access Key..." autocomplete="off">
             <button type="button" id="unlockBtn">Buka Akses</button>
-            <div class="error-msg" id="errorMsg">Access Key Salah! Hubungi Admin.</div>
+            <div class="error-msg" id="errorMsg">Access Key salah. Akses ditolak.</div>
         </div>
     </div>
 
     <!-- Panel Kiri: Form Input -->
     <aside>
-        <div class="brand">SYSTEM <span>SCC TELKOM</span></div>
-        <div style="font-size: 11px; color: var(--accent); margin-top: -18px; font-weight: 600; letter-spacing: 0.5px;">SCC TOOLS v1.0</div>
+        <div class="brand-header">
+            <div class="brand-title">
+                <span>FORM <span class="telkom">SCC</span></span>
+                <span class="badge-tag">v1.0</span>
+            </div>
+            <div class="brand-subtitle">Telkom Akses Field Workspace</div>
+        </div>
 
         <form id="sccForm">
             <div class="input-group">
-                <label for="ticketId">Nomer Tiket</label>
+                <label for="ticketId">Nomor Tiket</label>
                 <input type="text" id="ticketId" placeholder="Contoh: INC40660193" required autocomplete="off">
             </div>
 
             <div class="input-group">
-                <label for="odpSearch">Cari Nama / Koordinat ODP (Auto-fill)</label>
+                <label for="odpSearch">Cari Nama / Koordinat ODP</label>
                 <input type="text" id="odpSearch" list="odpList" placeholder="Ketik nama ODP..." autocomplete="off" required>
                 <datalist id="odpList"></datalist>
             </div>
 
             <div class="input-group">
-                <label for="nd">Nomer Internet</label>
+                <label for="nd">Nomor Internet</label>
                 <input type="text" id="nd" placeholder="Contoh: 162201205432" required autocomplete="off">
             </div>
 
@@ -269,17 +342,19 @@
     <!-- Panel Kanan: Hasil Speedtest / Frame Embed -->
     <main>
         <div class="placeholder" id="placeholder">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polygon points="10 8 16 12 10 16 10 8"></polygon>
-            </svg>
-            <p>Silakan isi data di sebelah kiri<br>lalu klik <b>Submit Check</b>.</p>
+            <div class="placeholder-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                    <path d="M9 3v18"></path>
+                </svg>
+            </div>
+            <p>Isi data form di sebelah kiri untuk memulai eksekusi SCC.</p>
         </div>
 
         <div id="frameContainer" style="display: none; width: 100%; height: 100%; position: relative;">
-            <div style="position: absolute; top: 12px; right: 12px; z-index: 100; background: var(--panel); border: 1px solid var(--border); padding: 8px 14px; border-radius: 6px; display: flex; gap: 8px; align-items: center;">
-                <span style="font-size: 12px; color: var(--muted);">Buka di Tab Baru jika blank:</span>
-                <a id="openTabBtn" href="#" target="_blank" style="color: var(--accent); font-size: 12px; text-decoration: none; font-weight: 600;">Open Direct SCC ↗</a>
+            <div style="position: absolute; top: 12px; right: 12px; z-index: 100; background: var(--panel); border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; display: flex; gap: 8px; align-items: center;">
+                <span style="font-size: 11px; color: var(--text-secondary);">Direct Link:</span>
+                <a id="openTabBtn" href="#" target="_blank" style="color: var(--text-primary); font-size: 11px; font-weight: 500; text-decoration: underline;">Open SCC Window ↗</a>
             </div>
             <iframe id="sccFrame" src="" allow="geolocation" style="width: 100%; height: 100%; border: none;"></iframe>
         </div>

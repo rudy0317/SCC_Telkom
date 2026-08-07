@@ -7,101 +7,292 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e60000'/%3E%3Cpath d='M8 10h16v3H8zm6 3h4v10h-4z' fill='%23ffffff'/%3E%3C/svg%3E">
     <style>
         :root {
-            --bg: #0f172a;
-            --panel: #1e293b;
-            --border: #334155;
-            --text: #f8fafc;
-            --muted: #94a3b8;
-            --red: #e60000;
-            --accent: #38bdf8;
-            --green: #22c55e;
+            --bg: #F4F4F5;
+            --panel: #FFFFFF;
+            --border: #E4E4E7;
+            --border-focus: #E60000;
+            --text-primary: #18181B;
+            --text-secondary: #52525B;
+            --text-muted: #A1A1AA;
+            --telkom-red: #E60000;
+            --telkom-red-hover: #CC0000;
+            --accent-red-bg: #FEF2F2;
+            --accent-red-fg: #991B1B;
+            --accent-blue-bg: #EFF6FF;
+            --accent-blue-fg: #1E40AF;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
 
         aside {
-            width: 380px; background: var(--panel); border-right: 1px solid var(--border);
-            padding: 24px; display: flex; flex-direction: column; gap: 20px; flex-shrink: 0;
+            width: 380px;
+            background: var(--panel);
+            border-right: 1px solid var(--border);
+            padding: 32px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            flex-shrink: 0;
             overflow-y: auto;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
         }
 
-        .brand { font-size: 16px; font-weight: 700; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; }
-        .brand span { color: var(--red); }
+        .brand-header {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand-title {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+
+        .brand-title span.telkom {
+            color: var(--telkom-red);
+        }
+
+        .brand-subtitle {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
 
         .engine-badge {
-            background: rgba(56, 189, 248, 0.15); border: 1px solid var(--accent); color: var(--accent);
-            padding: 8px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; text-align: center;
-            letter-spacing: 0.5px;
+            background: var(--accent-red-bg);
+            border: 1px solid #FECACA;
+            color: var(--telkom-red);
+            padding: 7px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 0.02em;
         }
 
-        form { display: flex; flex-direction: column; gap: 16px; }
-        .input-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
-        .input-group label { font-size: 13px; font-weight: 600; color: var(--muted); }
-        .input-group input {
-            background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-            color: var(--text); padding: 12px; font-size: 14px; outline: none; transition: border-color 0.2s;
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
         }
-        .input-group input:focus { border-color: var(--accent); }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+        }
+
+        .input-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .input-group input {
+            background: #FAFAFA;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            padding: 11px 13px;
+            font-size: 13.5px;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .input-group input:focus {
+            border-color: var(--telkom-red);
+            background: #FFFFFF;
+            box-shadow: 0 0 0 3px rgba(230, 0, 0, 0.08);
+        }
 
         .suggestions {
-            position: absolute; top: 100%; left: 0; right: 0; background: var(--panel);
-            border: 1px solid var(--border); border-radius: 6px; max-height: 200px; overflow-y: auto;
-            z-index: 1000; display: none; margin-top: 4px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            margin-top: 4px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
         }
+
         .suggestion-item {
-            padding: 10px 14px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border);
+            padding: 10px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
         }
-        .suggestion-item:hover { background: rgba(56, 189, 248, 0.1); color: var(--accent); }
+
+        .suggestion-item:hover {
+            background: var(--accent-red-bg);
+            color: var(--telkom-red);
+        }
 
         button {
-            background: var(--red); color: white; border: none; border-radius: 6px;
-            padding: 14px; font-weight: 700; font-size: 14px; cursor: pointer; transition: opacity 0.2s; margin-top: 8px;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
+            background: var(--telkom-red);
+            color: #FFFFFF;
+            border: none;
+            border-radius: 6px;
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 13.5px;
+            cursor: pointer;
+            transition: background-color 0.15s ease, transform 0.1s ease;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(230, 0, 0, 0.15);
         }
-        button:hover { opacity: 0.9; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        main { flex: 1; position: relative; background: #000; height: 100vh; display: flex; flex-direction: column; }
-        
+        button:hover {
+            background: var(--telkom-red-hover);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        main {
+            flex: 1;
+            position: relative;
+            background: var(--bg);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
         .status-bar {
-            background: var(--panel); border-bottom: 1px solid var(--border); padding: 12px 20px;
-            display: flex; align-items: center; justify-content: space-between; font-size: 13px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12.5px;
+            color: var(--text-secondary);
         }
 
         .live-tag {
-            background: rgba(239, 68, 68, 0.2); border: 1px solid var(--red); color: var(--red);
-            padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 1px;
-            animation: pulse 1.5s infinite; display: none;
+            background: var(--accent-red-bg);
+            border: 1px solid #FECACA;
+            color: var(--telkom-red);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            display: none;
         }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
         .preview-container {
-            flex: 1; display: flex; align-items: center; justify-content: center;
-            background: #000; padding: 20px; overflow: auto; position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            padding: 24px;
+            overflow: auto;
+            position: relative;
         }
 
         .preview-img {
-            max-width: 100%; max-height: 100%; border-radius: 8px; border: 1px solid var(--border);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); display: none;
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            display: none;
         }
 
         .placeholder-box {
-            text-align: center; color: var(--muted); font-size: 14px; max-width: 400px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+            max-width: 360px;
+            line-height: 1.6;
+        }
+
+        .placeholder-icon {
+            width: 44px;
+            height: 44px;
+            margin: 0 auto 16px auto;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--panel);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--telkom-red);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         }
 
         .console-log {
-            position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(15, 23, 42, 0.9);
-            border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 12px;
-            font-family: monospace; color: var(--accent); max-height: 80px; overflow-y: auto;
-            backdrop-filter: blur(8px); display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 12px;
+            font-family: monospace;
+            color: var(--text-primary);
+            max-height: 80px;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            display: none;
         }
 
         .spinner {
-            width: 18px; height: 18px; border: 2px solid #fff; border-top-color: transparent;
-            border-radius: 50%; animation: spin 0.8s linear infinite; display: none;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #FFFFFF;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
 
         @media (max-width: 768px) {
             body { flex-direction: column; overflow: auto; }
@@ -113,8 +304,9 @@
 <body>
 
     <aside>
-        <div class="brand">SYSTEM <span>SCC TELKOM</span></div>
-        <div class="engine-badge">⚡ REALTIME PLAYWRIGHT CDP STREAM v2.5</div>
+        <div class="brand-header">
+            <div class="brand-title"><span class="telkom">SCC TOOLS</span> v1.0</div>
+        </div>
 
         <form id="sccForm">
             <div class="input-group">
@@ -138,37 +330,38 @@
 
             <button type="submit" id="submitBtn">
                 <div class="spinner" id="btnSpinner"></div>
-                <span id="btnText">Start Realtime CDP Stream</span>
+                <span id="btnText">Start Stream</span>
             </button>
         </form>
-
-        <div style="font-size: 11px; color: var(--muted); line-height: 1.5; margin-top: auto;">
-            🔴 <b>Realtime Stream</b>: Tampilan browser Playwright disiarkan secara live ke layar HP/Desktop teknisi (3 FPS). 100% transparan & tanpa delay.
-        </div>
     </aside>
 
     <main>
         <div class="status-bar">
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span class="live-tag" id="liveTag">LIVE STREAM</span>
-                <span>Status: </span>
-                <strong id="engineStatus" style="color: var(--accent);">Ready</strong>
+                <span>Status:</span>
+                <strong id="engineStatus" style="color: var(--text-primary); font-family: 'Geist Mono', monospace;">Ready</strong>
             </div>
-            <div id="gpsStatusText" style="font-size: 12px; color: var(--muted);">
+            <div id="gpsStatusText" style="font-size: 12px; color: var(--text-secondary); font-family: 'Geist Mono', monospace;">
                 GPS target: -
             </div>
         </div>
 
         <div class="preview-container">
+            <div id="layakBanner" style="display: none; position: absolute; top: 20px; z-index: 50; background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 14px rgba(22, 101, 52, 0.12); align-items: center; justify-content: center;">
+                STATUS: LAYAK
+            </div>
+
             <div class="placeholder-box" id="placeholder">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 12px; opacity: 0.4;">
-                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
-                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                </svg>
-                <p>Isi data di sebelah kiri lalu klik <b>Start Realtime CDP Stream</b>.<br>Disiarkan secara live dari browser headless Playwright.</p>
+                <div class="placeholder-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                    </svg>
+                </div>
+                <p>Isi data form lalu klik <b>Start Stream</b> untuk memulai proses SCC.</p>
             </div>
             <img id="previewImg" class="preview-img" src="" alt="Playwright Live Screen Stream">
-            <div class="console-log" id="consoleLog"></div>
         </div>
     </main>
 
@@ -186,7 +379,6 @@
         const engineStatus = document.getElementById('engineStatus');
         const gpsStatusText = document.getElementById('gpsStatusText');
         const liveTag = document.getElementById('liveTag');
-        const consoleLog = document.getElementById('consoleLog');
 
         let debounceTimer;
 
@@ -242,8 +434,6 @@
             btnSpinner.style.display = 'block';
             btnText.textContent = 'Connecting Live Stream...';
             liveTag.style.display = 'inline-block';
-            consoleLog.style.display = 'block';
-            consoleLog.innerHTML = '';
             gpsStatusText.textContent = `GPS Target: ${lat}, ${lng}`;
 
             try {
@@ -280,15 +470,17 @@
                             } else if (event === 'status') {
                                 engineStatus.textContent = data.message;
                                 engineStatus.style.color = data.color || 'var(--accent)';
-                                const logDiv = document.createElement('div');
-                                logDiv.textContent = `> ${data.message}`;
-                                consoleLog.appendChild(logDiv);
-                                consoleLog.scrollTop = consoleLog.scrollHeight;
                             } else if (event === 'done') {
                                 liveTag.style.display = 'none';
                                 if (data.success) {
-                                    engineStatus.textContent = 'QC Completed Successfully!';
+                                    engineStatus.textContent = 'SCC Completed Successfully!';
                                     engineStatus.style.color = 'var(--green)';
+
+                                    // Tampilkan Pop-up Banner "LAYAK" di akhir proses
+                                    const layakBanner = document.getElementById('layakBanner');
+                                    if (layakBanner) {
+                                        layakBanner.style.display = 'flex';
+                                    }
                                 } else {
                                     engineStatus.textContent = 'Error: ' + data.error;
                                     engineStatus.style.color = '#ef4444';
@@ -306,7 +498,7 @@
                 submitBtn.disabled = false;
                 btnSpinner.style.display = 'none';
                 liveTag.style.display = 'none';
-                btnText.textContent = 'Start Realtime CDP Stream';
+                btnText.textContent = 'Start Stream';
             }
         });
     </script>

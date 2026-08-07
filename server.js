@@ -82,7 +82,7 @@ app.post('/api/scc/process-stream', async (req, res) => {
     } catch (e) {}
   };
 
-  sendEvent('status', { message: '🚀 Launching Chromium Native CDP Browser...', color: '#38bdf8' });
+  sendEvent('status', { message: 'Launching Chromium Native CDP Browser...', color: '#38bdf8' });
 
   let browser;
   let streamInterval;
@@ -121,7 +121,7 @@ app.post('/api/scc/process-stream', async (req, res) => {
 
     // Intercept retrieveIPRadius → Force statusCode 200
     await page.route('**/retrieveIPRadius**', async (route) => {
-      sendEvent('status', { message: '🔓 Intercepted retrieveIPRadius → Forcing statusCode 200', color: '#f59e0b' });
+      sendEvent('status', { message: 'Intercepted retrieveIPRadius -> Forcing statusCode 200', color: '#f59e0b' });
       try {
         const response = await route.fetch();
         let body = await response.text();
@@ -141,7 +141,7 @@ app.post('/api/scc/process-stream', async (req, res) => {
 
     // Intercept saveWho → Force passed_ip true
     await page.route('**/saveWho**', async (route) => {
-      sendEvent('status', { message: '🔓 Intercepted saveWho → Forcing passed_ip: true', color: '#f59e0b' });
+      sendEvent('status', { message: 'Intercepted saveWho -> Forcing passed_ip: true', color: '#f59e0b' });
       try {
         const response = await route.fetch();
         let body = await response.text();
@@ -159,7 +159,7 @@ app.post('/api/scc/process-stream', async (req, res) => {
 
     // Intercept SaveSpeed → Inject mock speedtest payload if rest is null
     await page.route('**/SaveSpeed**', async (route, request) => {
-      sendEvent('status', { message: '⚡ Intercepted SaveSpeed → Injecting valid Ookla payload', color: '#38bdf8' });
+      sendEvent('status', { message: 'Intercepted SaveSpeed -> Injecting valid Ookla payload', color: '#38bdf8' });
       try {
         let postData = request.postData() || '{}';
         let parsed = {};
@@ -184,7 +184,7 @@ app.post('/api/scc/process-stream', async (req, res) => {
 
     // Intercept retrieveSpeed → Force speed_passed = 1
     await page.route('**/retrieveSpeed**', async (route) => {
-      sendEvent('status', { message: '✅ Intercepted retrieveSpeed → Forcing speed_passed: 1 (Layak)', color: '#22c55e' });
+      sendEvent('status', { message: 'Intercepted retrieveSpeed -> Forcing speed_passed: 1 (Layak)', color: '#22c55e' });
       try {
         const response = await route.fetch();
         let body = await response.text();
@@ -201,25 +201,6 @@ app.post('/api/scc/process-stream', async (req, res) => {
       }
     });
 
-    // Intercept retrieveSpeedAcsis → Force speed data
-    await page.route('**/retrieveSpeedAcsis**', async (route) => {
-      sendEvent('status', { message: '✅ Intercepted retrieveSpeedAcsis → Injecting speed data', color: '#22c55e' });
-      try {
-        const response = await route.fetch();
-        let body = await response.text();
-        try {
-          const json = JSON.parse(body);
-          json.success = true;
-          if (!json.data) json.data = {};
-          json.data.speed = 32080;
-          body = JSON.stringify(json);
-        } catch (e) {}
-        await route.fulfill({ status: 200, contentType: 'application/json', body });
-      } catch (e) {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { speed: 32080 } }) });
-      }
-    });
-
     // Start 300ms Realtime Screen Frame Streaming
     streamInterval = setInterval(async () => {
       try {
@@ -231,14 +212,14 @@ app.post('/api/scc/process-stream', async (req, res) => {
     }, 300);
 
     const targetUrl = `https://scc.telkom.co.id/CloseTicket.Internet/Check_embededv1/?ticketId=${encodeURIComponent(ticketId)}&nd=${encodeURIComponent(nd)}`;
-    sendEvent('status', { message: '🌐 Navigating to SCC Telkom URL...', color: '#f59e0b' });
+    sendEvent('status', { message: 'Navigating to SCC Telkom URL...', color: '#f59e0b' });
 
     await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-    sendEvent('status', { message: '⌛ Waiting for SCC Telkom scripts to load...', color: '#f59e0b' });
+    sendEvent('status', { message: 'Waiting for SCC Telkom scripts to load...', color: '#f59e0b' });
     await page.waitForFunction(() => typeof $ !== 'undefined' && typeof doTask === 'function', { timeout: 30000 });
 
-    sendEvent('status', { message: '⚡ Injecting Ticket + ND & calling doTask()...', color: '#38bdf8' });
+    sendEvent('status', { message: 'Injecting Ticket + ND & calling doTask()...', color: '#38bdf8' });
     await page.evaluate(({ t, n }) => {
       $('#input-ticket').val(t);
       $('#input-nd').val(n);
@@ -247,10 +228,9 @@ app.post('/api/scc/process-stream', async (req, res) => {
       }
     }, { t: ticketId, n: nd });
 
-    sendEvent('status', { message: '📍 CDP Geolocation Active. Waiting for QC flow...', color: '#22c55e' });
+    sendEvent('status', { message: 'CDP Geolocation Active. Waiting for SCC flow...', color: '#22c55e' });
 
-    // Auto-drive loop: 180 seconds max (matches Telkom's 3-minute timeout)
-    // Strategy: Let speedtest run naturally. Only inject rest as FALLBACK after 45s.
+    // Auto-drive loop: 180 seconds max
     let speedtestModalStartedAt = null;
 
     for (let i = 0; i < 180; i++) {
@@ -258,7 +238,6 @@ app.post('/api/scc/process-stream', async (req, res) => {
       try {
         if (page && !page.isClosed()) {
           const actionLog = await page.evaluate(({ mockResult, secondsInModal }) => {
-            // Initialize state tracker
             if (!window.__automation) {
               window.__automation = {
                 restInjected: false,
@@ -268,11 +247,10 @@ app.post('/api/scc/process-stream', async (req, res) => {
             const state = window.__automation;
             let actions = [];
 
-            // AUTO-SKIP: Speed Test ONT/Acsis - langsung isi dan hide
+            // AUTO-SKIP: Speed Test ONT/Acsis loader
             if ($('#loader-speed-acsis').is(':visible')) {
               $('#loader-speed-acsis').addClass('hide');
-              $('#confirm-speed-acsis').val('32080');
-              actions.push('Skipped Speed Test ONT');
+              actions.push('Skipped Speed Test ONT Loader');
             }
 
             // Report current visible step
@@ -283,7 +261,7 @@ app.post('/api/scc/process-stream', async (req, res) => {
             else if ($('#ookla-test').is(':visible')) {
               ooklaVisible = true;
               if (typeof rest !== 'undefined' && rest !== null && rest.download) {
-                currentStep = 'Speedtest Complete ✅ (Download: ' + rest.download + ')';
+                currentStep = 'Speedtest Complete (Download: ' + rest.download + ')';
               } else {
                 currentStep = 'Speedtest Running... (' + secondsInModal + 's)';
               }
@@ -292,37 +270,44 @@ app.post('/api/scc/process-stream', async (req, res) => {
             else if ($('#show-location').is(':visible')) currentStep = 'Saving Location';
             if (currentStep) actions.push('Step: ' + currentStep);
 
-            // FALLBACK: Only inject rest after 45 seconds of speedtest modal being visible
-            // This gives the Ookla iframe time to actually run
-            if (ooklaVisible && !state.restInjected && secondsInModal >= 45) {
+            // Inject rest immediately when ooklaVisible to avoid 45s waiting delay
+            if (ooklaVisible && !state.restInjected) {
               if (typeof rest === 'undefined' || rest === null) {
                 window.rest = mockResult;
                 state.restInjected = true;
-                actions.push('⚠️ Speedtest timeout → Injected fallback rest');
+                actions.push('Speedtest detected -> Injected Ookla payload');
               }
             }
 
             // Click #submit-speed ONCE when rest is available (either natural or fallback)
+            let speedSubmitted = false;
             if (!state.speedClicked && typeof rest !== 'undefined' && rest !== null) {
               if ($('#submit-speed').length) {
                 $('#submit-speed').removeClass('disabled').addClass('enabled');
                 $('#submit-speed').trigger('click');
                 state.speedClicked = true;
-                actions.push('Clicked #submit-speed (once)');
+                speedSubmitted = true;
+                actions.push('Clicked #submit-speed -> Speed Payload Injected');
               }
             }
 
-            return { actions, ooklaVisible };
+            return { actions, ooklaVisible, speedSubmitted, isDone: state.speedClicked };
           }, { mockResult: MOCK_SPEEDTEST_RESULT, secondsInModal: speedtestModalStartedAt !== null ? (i - speedtestModalStartedAt) : 0 });
 
           // Track when speedtest modal first appeared
           if (actionLog.ooklaVisible && speedtestModalStartedAt === null) {
             speedtestModalStartedAt = i;
-            sendEvent('status', { message: '🏎️ Speedtest modal detected! Letting it run naturally...', color: '#f59e0b' });
+            sendEvent('status', { message: 'Speedtest modal detected! Auto-injecting payload...', color: '#f59e0b' });
           }
 
           if (actionLog.actions.length > 0) {
-            sendEvent('status', { message: `🤖 [${i+1}s] ${actionLog.actions.join(' | ')}`, color: '#38bdf8' });
+            sendEvent('status', { message: `[${i+1}s] ${actionLog.actions.join(' | ')}`, color: '#38bdf8' });
+          }
+
+          // Exit immediately after speed test injection & submit to avoid long looping
+          if (actionLog.isDone || actionLog.speedSubmitted) {
+            sendEvent('status', { message: 'SaveSpeed Intercepted & Submitted! Auto-drive finished.', color: '#22c55e' });
+            break;
           }
 
           // Early exit if finished
@@ -332,14 +317,14 @@ app.post('/api/scc/process-stream', async (req, res) => {
                    document.body.innerText.includes('Success');
           });
           if (isFinished) {
-            sendEvent('status', { message: '🎉 QC Ticket Closed Successfully!', color: '#22c55e' });
+            sendEvent('status', { message: 'SCC Ticket Closed Successfully!', color: '#22c55e' });
             break;
           }
         }
       } catch (e) {}
     }
 
-    sendEvent('status', { message: '✅ Full QC Cycle Completed!', color: '#22c55e' });
+    sendEvent('status', { message: 'Full SCC Cycle Completed!', color: '#22c55e' });
 
     const finalBuffer = await page.screenshot({ type: 'png' });
     sendEvent('frame', { image: `data:image/png;base64,${finalBuffer.toString('base64')}` });
@@ -354,7 +339,7 @@ app.post('/api/scc/process-stream', async (req, res) => {
     if (streamInterval) clearInterval(streamInterval);
     if (browser) await browser.close();
 
-    sendEvent('status', { message: `❌ Error: ${error.message}`, color: '#ef4444' });
+    sendEvent('status', { message: `Error: ${error.message}`, color: '#ef4444' });
     sendEvent('done', { success: false, error: error.message });
     res.end();
   }
@@ -362,7 +347,7 @@ app.post('/api/scc/process-stream', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`\n======================================================`);
-  console.log(`🚀 SCC Telkom Playwright Automation Engine v2.5`);
-  console.log(`🌐 Server running at: http://localhost:${PORT}`);
+  console.log(`SCC Telkom Playwright Automation Engine v2.5`);
+  console.log(`Server running at: http://localhost:${PORT}`);
   console.log(`======================================================\n`);
 });
